@@ -220,6 +220,32 @@ Aligns local briefs with source tasks. Reports health status.
 - [skills CLI](https://github.com/vercel-labs/skills) — install skills to 45+ AI tools
 - [Mino](https://github.com/robinv8/Mino) — the macOS GUI app this skill set was extracted from
 
+## Uninstall
+
+### Using `skills` CLI
+
+```bash
+# Remove from all agents
+npx skills remove robinv8/mino-skills -g
+
+# Remove from a specific agent
+npx skills remove robinv8/mino-skills -a claude-code -g
+```
+
+### Manual uninstall
+
+```bash
+# Claude Code
+rm -rf ~/.claude/skills/mino
+
+# Cursor / Codex / OpenCode
+rm -rf ~/.agents/skills/mino
+
+# Or project-level
+rm -rf .claude/skills/mino
+rm -rf .agents/skills/mino
+```
+
 ## License
 
 MIT
