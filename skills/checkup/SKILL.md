@@ -23,25 +23,48 @@ The user may specify a mode. Default is `check`.
 
 1. **Detect mode** — from user input or default to `check`.
 2. **Core checks** (all modes):
-   - `.agents/skills/` exists and contains `task`, `run`, `verify`, `checkup`
-   - `.agents/third-party-skills.json` is valid JSON
    - `.mino/` and `.mino/briefs/` exist
    - Source adapter (GitHub CLI `gh`) is authenticated
    - Claude Code is available
-3. **Pre-flight** (if requested with task):
+3. **Skill ecosystem scan** (all modes):
+   - Discover all installed skills across scopes:
+     - Project: `.claude/skills/`, `.agents/skills/`
+     - Global: `~/.claude/skills/`, `~/.agents/skills/`
+   - Verify **core skills** (required for Iron Tree): `task`, `run`, `verify`, `checkup`
+   - Check **complementary skills** by role (quality boosters, optional):
+     | Role | Skill examples | Why it helps |
+     |------|---------------|--------------|
+     | Design validation | `think` | Pressure-test architecture before building |
+     | Code review | `check` | Review diff, flag hard stops before merge |
+     | Debugging | `hunt` | Systematic root-cause analysis |
+     | Planning | `writing-plans` | Break specs into tracer-bullet plans |
+     | Test-driven | `test-driven-development` | Write tests before implementation |
+     | Sub-agent | `subagent-driven-development` | Parallel execution of independent tasks |
+   - Report: which roles are covered, which are gaps
+4. **Pre-flight** (if requested with task):
    - Check task-specific dependencies (e.g., `node_modules`, Xcode project)
    - Auto-repair minor issues (e.g., `npm install`)
-4. **Reconcile** (if `reconcile` or `repair`):
+5. **Reconcile** (if `reconcile` or `repair`):
    - List local briefs: `ls .mino/briefs/issue-*.md`
    - List source tasks: `gh issue list --state all`
    - Detect gaps: missing briefs, orphan briefs, stale metadata
    - Refresh stale brief metadata without overwriting human content
-5. **Report** — print a concise health report:
+6. **Report** — print a concise health report:
 
    ```
    [checkup] Health Report
    ───────────────────────
-   Skills wired:      ✅ 4/4
+   Iron Tree core:    ✅ 4/4 (all project-level)
+     task, run, verify, checkup
+
+   Complementary:     2/6 roles covered
+     ✅ think       (global)    → design validation
+     ❌ check                  → recommend: npx skills add tw93/Waza -a claude-code
+     ❌ hunt                   → recommend: npx skills add tw93/Waza -a claude-code
+     ✅ writing-plans (project) → planning
+     ❌ test-driven-development → recommend: npx skills add <source> -a claude-code
+     ❌ subagent-driven-development
+
    Briefs directory:  ✅
    gh auth:           ✅
 
