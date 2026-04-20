@@ -62,5 +62,5 @@ The user may specify a mode. Default is `check`.
 
 ## References
 
-- [references/brief-contract.md](references/brief-contract.md)
-- [references/workflow-state-contract.md](references/workflow-state-contract.md)
+- [../references/brief-contract.md](../references/brief-contract.md)
+- [../references/workflow-state-contract.md](../references/workflow-state-contract.md)

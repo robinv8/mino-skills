@@ -72,6 +72,6 @@ Each brief must contain:
 
 ## References
 
-- [references/workflow-state-contract.md](references/workflow-state-contract.md)
-- [references/brief-contract.md](references/brief-contract.md)
-- [references/iron-tree-protocol.md](references/iron-tree-protocol.md)
+- [../references/workflow-state-contract.md](../references/workflow-state-contract.md)
+- [../references/brief-contract.md](../references/brief-contract.md)
+- [../references/iron-tree-protocol.md](../references/iron-tree-protocol.md)

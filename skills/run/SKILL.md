@@ -47,5 +47,5 @@ Read an approved task DAG from local briefs, schedule work in dependency order, 
 
 ## References
 
-- [references/workflow-state-contract.md](references/workflow-state-contract.md)
-- [references/iron-tree-protocol.md](references/iron-tree-protocol.md)
+- [../references/workflow-state-contract.md](../references/workflow-state-contract.md)
+- [../references/iron-tree-protocol.md](../references/iron-tree-protocol.md)

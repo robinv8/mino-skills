@@ -29,24 +29,73 @@ No GUI. No runtime. No deposition events. Just prompts that agents follow.
 
 ```
 mino-skills/
-├── task/SKILL.md                    # Markdown → DAG → issues + briefs
-├── run/SKILL.md                     # Serial execution with self-correction
-├── verify/SKILL.md                  # Build/test/lint validation
-├── checkup/SKILL.md                 # Health check + reconciliation
-├── references/
-│   ├── iron-tree-protocol.md        # Execution loop specification
-│   ├── workflow-state-contract.md   # Stage vocabulary
-│   └── brief-contract.md            # Brief format
+├── skills/
+│   ├── task/SKILL.md                    # Markdown → DAG → issues + briefs
+│   ├── run/SKILL.md                     # Serial execution with self-correction
+│   ├── verify/SKILL.md                  # Build/test/lint validation
+│   ├── checkup/SKILL.md                 # Health check + reconciliation
+│   └── references/
+│       ├── iron-tree-protocol.md        # Execution loop specification
+│       ├── workflow-state-contract.md   # Stage vocabulary
+│       └── brief-contract.md            # Brief format
 ├── README.md
 └── LICENSE
 ```
 
 ## Install
 
-### Into your project
+### Using `skills` CLI (recommended)
+
+The [`skills`](https://github.com/vercel-labs/skills) CLI installs skills to 45+ AI tools with one command.
+
+**Claude Code**
+
+```bash
+npx skills add robinv8/mino-skills -a claude-code -g -y
+```
+
+**Codex**
+
+```bash
+npx skills add robinv8/mino-skills -a codex -g -y
+```
+
+**Cursor**
+
+```bash
+npx skills add robinv8/mino-skills -a cursor -g -y
+```
+
+**Other tools**
+
+```bash
+# List all supported agents
+npx skills add --help
+
+# Install to multiple agents at once
+npx skills add robinv8/mino-skills -a claude-code -a codex -g -y
+```
+
+**Options**
+
+| Flag | Meaning |
+|------|---------|
+| `-g, --global` | Install to user directory (available in all projects) |
+| `-a, --agent` | Target agent(s). Omit to auto-detect |
+| `-y, --yes` | Skip confirmation prompts |
+| `--copy` | Copy files instead of symlinks |
+
+### Manual install
 
 ```bash
 cd your-project
+
+# Claude Code
+mkdir -p .claude/skills
+git clone https://github.com/robinv8/mino-skills.git .claude/skills/mino
+
+# Cursor / Codex / OpenCode (shared `.agents/skills/` path)
+mkdir -p .agents/skills
 git clone https://github.com/robinv8/mino-skills.git .agents/skills/mino
 ```
 
@@ -66,7 +115,7 @@ Any [Agent Skills](https://agentskills.io)-compatible agent will auto-discover t
 No tool required — just copy the prompt:
 
 ```bash
-cat .agents/skills/mino/task/SKILL.md
+cat skills/task/SKILL.md
 # Paste into ChatGPT, Claude, Cursor, or any AI chat
 ```
 
@@ -155,9 +204,9 @@ Aligns local briefs with source tasks. Reports health status.
 
 ## References
 
-- [references/iron-tree-protocol.md](references/iron-tree-protocol.md) — the execution loop
-- [references/workflow-state-contract.md](references/workflow-state-contract.md) — stage vocabulary
-- [references/brief-contract.md](references/brief-contract.md) — brief format
+- [skills/references/iron-tree-protocol.md](skills/references/iron-tree-protocol.md) — the execution loop
+- [skills/references/workflow-state-contract.md](skills/references/workflow-state-contract.md) — stage vocabulary
+- [skills/references/brief-contract.md](skills/references/brief-contract.md) — brief format
 
 ## Requirements
 
@@ -168,6 +217,7 @@ Aligns local briefs with source tasks. Reports health status.
 ## Related
 
 - [Agent Skills specification](https://agentskills.io/specification)
+- [skills CLI](https://github.com/vercel-labs/skills) — install skills to 45+ AI tools
 - [Mino](https://github.com/robinv8/Mino) — the macOS GUI app this skill set was extracted from
 
 ## License

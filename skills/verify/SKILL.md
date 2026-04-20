@@ -60,5 +60,5 @@ Validate executed work against explicit acceptance criteria and repository-nativ
 
 ## References
 
-- [references/workflow-state-contract.md](references/workflow-state-contract.md)
-- [references/iron-tree-protocol.md](references/iron-tree-protocol.md)
+- [../references/workflow-state-contract.md](../references/workflow-state-contract.md)
+- [../references/iron-tree-protocol.md](../references/iron-tree-protocol.md)
