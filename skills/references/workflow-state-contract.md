@@ -28,6 +28,7 @@ Local briefs also carry workflow cache fields for scheduling and recovery:
 - `Workflow State`
 - `Dependencies`
 - `Work Breakdown` when the task is composite
+- `Manual Acceptance`
 - `Failure Context`
 - `Execution Summary`
 - `Verification Summary`
@@ -155,9 +156,26 @@ Allowed `event` values:
 - `verify_failed_terminal`
 - `verify_pending_acceptance`
 - `checkup_preflight_blocked`
+- `checkup_accept_publication_failed`
 - `checkup_accept_recorded`
 - `checkup_aggregate_recorded`
 - `checkup_done`
+
+## Pending Acceptance Coordination
+
+When a task enters `Workflow Entry State: pending_acceptance`:
+
+- The detailed manual verification checklist lives in the local brief under `Manual Acceptance`
+- The linked issue should receive the label `pending-acceptance` for easy multi-user discovery
+- The linked issue should receive a short summary comment containing the reason and the action to run `/checkup accept issue-{N}`
+- The summary comment is for shared visibility; the detailed checklist remains local brief data
+
+When a task leaves `pending_acceptance` through `checkup accept`:
+
+- `checkup` records the human result in an issue comment with reviewer, result, timestamp, `code_ref`, and notes
+- `checkup` removes the `pending-acceptance` label
+
+The label is an index for querying pending tasks. It is not the authoritative workflow state by itself.
 
 ## Identity Model
 
@@ -199,7 +217,8 @@ Allowed `event` values:
 ### checkup
 
 - `pre-flight` validates readiness and may mark `Workflow Entry State: blocked`, but must never write `done`
-- `accept` records human acceptance for a task in `pending_acceptance`, binds it to a published `code_ref`, then transitions it to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: accepted`
+- `accept` records human acceptance for a task in `pending_acceptance`, publishes any remaining code with the standard commit style `[run] issue-{N}: {concise change summary}` if needed, binds the acceptance to the published `code_ref`, posts the shared acceptance record to the issue, removes the `pending-acceptance` label, then transitions it to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: accepted`
+- If publication fails during `accept`, do NOT record acceptance. Keep `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`, `Code Publication State: local_only`, leave `Pass/Fail Outcome` and `Completion Basis` unchanged, persist the publication error in `Failure Context`, post a short human-readable failure summary, emit `checkup_accept_publication_failed`, and do not advance to `done`
 - `aggregate` records aggregate completion for a `composite` / `container` task after all required children are `done`; it transitions the parent to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: aggregated`
 - `reconcile` aligns the local brief with authoritative issue state by replaying the highest valid `sequence` for the active approved revision
 - Final alignment: `checkup` → `done` only when `Completion Basis` is `verified`, `accepted`, or `aggregated`, and `Code Publication State` is not `local_only`

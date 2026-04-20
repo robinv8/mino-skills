@@ -178,7 +178,7 @@ Runs build, tests, linters. Results:
 /checkup aggregate issue-1
 ```
 
-`checkup` handles pre-flight checks, brief reconciliation, recording manual acceptance, and aggregating composite parents before a task can reach `done`.
+`checkup` handles pre-flight checks, brief reconciliation, recording manual acceptance, aggregating composite parents, and printing a centralized `Pending Acceptance` list before a task can reach `done`.
 
 ## The Iron Tree Protocol
 
@@ -206,6 +206,7 @@ Runs build, tests, linters. Results:
 - **Serial execution**: DAG nodes run one at a time (v1), respecting `depends_on`
 - **Approval gates**: Human must approve the DAG before any execution begins
 - **Manual acceptance**: if automation cannot prove correctness, `verify` stops at `pending_acceptance` and `checkup accept` records the human decision
+- **Shared visibility**: detailed manual checklists stay in local briefs, while issue labels/comments make acceptance status visible to collaborators
 - **Revision-aware approval**: published work stays executable only while `Spec Revision` matches `Approved Revision`
 - **Canonical identity**: `Task Key` is the protocol identity; `issue-8` is a user-facing locator after publish
 

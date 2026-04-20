@@ -29,6 +29,7 @@ A compliant brief should contain these sections:
 - `Target Files`
 - `Work Breakdown`
 - `Workflow State`
+- `Manual Acceptance`
 - `Failure Context`
 - `Completion Handoff`
 - `Execution Summary`
@@ -37,7 +38,7 @@ A compliant brief should contain these sections:
 - `Open Questions / Warnings`
 - `Source`
 
-`Work Breakdown` is required for composite tasks. `Failure Context`, `Execution Summary`, `Verification Summary`, and `Pass/Fail Outcome` may be absent until the workflow reaches those phases.
+`Work Breakdown` is required for composite tasks. `Manual Acceptance`, `Failure Context`, `Execution Summary`, `Verification Summary`, and `Pass/Fail Outcome` may be absent until the workflow reaches those phases.
 
 ## Required Fields By Section
 
@@ -70,6 +71,14 @@ A compliant brief should contain these sections:
 - `Max Retry Count`
 - `Code Publication State`
 
+### Manual Acceptance
+
+Required when `Workflow Entry State: pending_acceptance`:
+
+- `Reason`
+- `Checklist`
+- `Action`
+
 ### Completion Handoff
 
 - `Completion Basis` when known
@@ -81,7 +90,7 @@ Managed by skills:
 
 - `Issue`, `Classification`, `Dependencies`
 - `Acceptance Criteria`, `Verification`, `Target Files`
-- `Work Breakdown`, `Workflow State`, `Failure Context`
+- `Work Breakdown`, `Workflow State`, `Manual Acceptance`, `Failure Context`
 - `Completion Handoff`, `Execution Summary`, `Verification Summary`, `Pass/Fail Outcome`
 - `Source`
 
@@ -108,6 +117,7 @@ Brief state is a local cache for fast DAG scheduling and CLI inspection.
 | Target Files | Implementation and review scope |
 | Work Breakdown | Child tasks and order for composite work |
 | Workflow State | Revision, stage, gate state, attempt budget, and publication state |
+| Manual Acceptance | Detailed local checklist for pending human verification |
 | Failure Context | Exact failure payload for self-correction |
 | Completion Handoff | How the task became completable: verified, accepted, or aggregated |
 | Execution Summary | Concrete execution results |

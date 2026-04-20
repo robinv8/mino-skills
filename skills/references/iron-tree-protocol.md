@@ -59,9 +59,10 @@ The protocol shifts work from ad hoc prompting to a state-machine driven loop wi
 1. Record human acceptance when the task is in `pending_acceptance`
 2. Or aggregate child completion for composite/container parents
 3. Bind completion evidence to a published `code_ref` when code changed
-4. Reconcile the local brief with the authoritative issue record
-5. Transition `checkup` → `done` only when completion evidence exists
-6. Evaluate the next serially eligible DAG node
+4. If code publication fails during acceptance, do not record acceptance; preserve `pending_acceptance`, keep the local code state, and record publication failure context for retry
+5. Reconcile the local brief with the authoritative issue record
+6. Transition `checkup` → `done` only when completion evidence exists
+7. Evaluate the next serially eligible DAG node
 
 ## Source Of Truth
 

@@ -51,15 +51,6 @@ Validate executed work against explicit acceptance criteria and repository-nativ
    - Only after publication succeeds, update brief: `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Code Publication State: published|not_applicable`, `Pass/Fail Outcome: pass`
    - Record `Completion Basis: verified` and `Code Ref`
    - Post a structured `verify_passed` event
-   - If `Close On Done: manual`:
-     > [verify] issue-{N}: All checks passed — awaiting manual verification
-     >
-     > This task requires manual verification before closing.
-     >
-     > Please verify the change in your environment.
-     >
-     > Run `/checkup accept issue-{N}` to record acceptance and close this issue.
-
    **If automated checks pass but human review is still required**:
    > ⏸️ **manual acceptance required** — issue-8
    > Steps:
@@ -69,8 +60,17 @@ Validate executed work against explicit acceptance criteria and repository-nativ
    > 4. Record acceptance with `/checkup accept issue-8`
 
    Then:
+   - Write the detailed checklist to the brief `Manual Acceptance` section:
+     - `Reason: verify passed, awaiting manual check`
+     - `Checklist: ...`
+     - `Action: Run /checkup accept issue-{N}`
    - Update brief: `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`
    - Leave `Pass/Fail Outcome` unset
+   - Add the issue label `pending-acceptance` if available
+   - Post a short issue summary comment:
+     - Reason
+     - Action to run `/checkup accept issue-{N}`
+     - Note that the detailed checklist is stored in the local brief
    - Post a structured `verify_pending_acceptance` event
 
    **If no verification command is detected**:
@@ -79,8 +79,17 @@ Validate executed work against explicit acceptance criteria and repository-nativ
    > Action: add a `.mino/config.yml` with `verify.command`, or review manually and then run `/checkup accept issue-8`
 
    Then:
+   - Write the detailed checklist to the brief `Manual Acceptance` section:
+     - `Reason: no tooling detected`
+     - `Checklist: ...`
+     - `Action: Run /checkup accept issue-{N}`
    - Update brief: `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`
    - Leave `Pass/Fail Outcome` unset
+   - Add the issue label `pending-acceptance` if available
+   - Post a short issue summary comment:
+     - Reason
+     - Action to run `/checkup accept issue-{N}`
+     - Note that the detailed checklist is stored in the local brief
    - Post a structured `verify_pending_acceptance` event
 
    **If checks fail and retryable**:

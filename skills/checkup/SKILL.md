@@ -48,10 +48,30 @@ The user may specify a mode. Default is `check`.
    - Detect gaps: missing briefs, orphan briefs, stale metadata
    - Refresh stale brief metadata without overwriting human content
    - Rebuild brief state by replaying valid workflow events for the active approved revision in ascending `sequence` order
+   - Collect every task whose `Workflow Entry State` is `pending_acceptance`
+   - For each pending task, read the brief `Manual Acceptance` section as the primary source for:
+     - reason
+     - checklist summary
+     - next action
+   - Cross-check the shared issue state:
+     - the issue should carry label `pending-acceptance`
+     - the issue timeline should already have the pending-acceptance summary comment
 6. **Accept** (if `accept` with a task):
    - Confirm the task is in `Workflow Entry State: pending_acceptance`
-   - If relevant code changes remain unpublished, publish them first and capture the resulting `HEAD` SHA as `Code Ref`
+   - If relevant code changes remain unpublished, publish them first:
+     - Stage only non-brief code files
+     - Commit with `[run] issue-{N}: {concise change summary}`
+     - `git push`
+     - Capture the resulting `HEAD` SHA as `Code Ref`
+     - If commit or push fails, do NOT record acceptance. Keep `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`, `Code Publication State: local_only`, leave `Pass/Fail Outcome` and `Completion Basis` unchanged, persist the publication error in `Failure Context`, post a short human-readable issue summary plus a structured `checkup_accept_publication_failed` event, and stop without advancing to `done`
    - Record concise human acceptance evidence in `Verification Summary`
+   - Post a shared issue comment including:
+     - `Reviewer`
+     - `Result: accepted`
+     - `Timestamp`
+     - `Code Ref`
+     - `Notes`
+   - Remove the `pending-acceptance` label
    - Update brief: `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Code Publication State: published|not_applicable`, `Pass/Fail Outcome: pass`
    - Record `Completion Basis: accepted` and `Code Ref`
    - Post a structured `checkup_accept_recorded` event
@@ -63,6 +83,25 @@ The user may specify a mode. Default is `check`.
    - Record `Completion Basis: aggregated`
    - Post a structured `checkup_aggregate_recorded` event
 8. **Report** — print a concise health report.
+   - The report should include a dedicated `Pending Acceptance` subsection whenever any tasks are waiting on human verification
+   - Example:
+
+   ```
+   [checkup] Health Report
+   ───────────────────────
+   ...
+   Briefs: 7 active
+   ─ issue-1  ✅ done (auto-closed)
+   ─ issue-2  ⏸️ pending acceptance — verify passed, awaiting manual check
+   ─ issue-3  ⏸️ pending acceptance — no tooling detected
+   ─ issue-4  ❌ blocked — terminal failure
+
+   Pending Acceptance: 2
+   ─ issue-2: Settings toggle
+     Action: Verify in app, then run `/checkup accept issue-2`
+   ─ issue-3: Dark mode fallback
+     Action: Review manually, then run `/checkup accept issue-3`
+   ```
 9. **Finalize state** — after `reconcile`, `accept`, or `aggregate` completes for a specific task:
    - Only mark the task `done` if `Completion Basis` is `verified`, `accepted`, or `aggregated`
    - Only mark the task `done` if `Code Publication State` is `published` or `not_applicable`
