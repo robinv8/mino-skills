@@ -4,71 +4,209 @@ Shared vocabulary for `task`, `run`, `verify`, and `checkup`.
 
 ## Core Fields
 
-Every workflow-driven work item carries these fields:
+Every workflow-driven work item must carry these fields:
 
+- `Task Key` — stable identifier for the task, ideally a deterministic slug derived from the spec path, parent key, and title. Published issues may also reference their GitHub issue number, but the task key itself must remain stable across reruns.
+- `Issue Number` — source-system locator after publication
+- `Spec Revision` — normalized hash of the source spec and approved DAG shape
+- `Approved Revision` — the exact `Spec Revision` last approved by a human
 - `Task Shape`
 - `Executability`
 - `Approval State`
-- `Execution Path`
+- `Depends On`
 - `Current Stage`
 - `Next Stage`
 - `Workflow Entry State`
-- `Retry Count` (default: 3)
+- `Attempt Count` (starts at `0`, increments when `run` begins)
+- `Max Retry Count` (default `3`, meaning one initial attempt plus up to three retries)
+- `Code Publication State`
+- `Pass/Fail Outcome` (optional until completion evidence exists)
+- `Completion Basis` (optional until the task is ready to finalize)
 
-Related local briefs may carry:
+Local briefs also carry workflow cache fields for scheduling and recovery:
 
 - `Workflow State`
+- `Dependencies`
 - `Work Breakdown` when the task is composite
-- `Pass/Fail Outcome` after verification
-- `Failure Context` payload for self-correction
+- `Failure Context`
+- `Execution Summary`
+- `Verification Summary`
+
+The linked GitHub issue body plus structured workflow events are the authoritative record. Brief state is a local cache for fast DAG scheduling and may drift; `checkup reconcile` repairs the brief from issue metadata and the latest valid workflow event sequence.
+
+Brief state updates are local-only. Do NOT stage or commit `.mino/briefs/` files.
 
 ## Task Shape
+
 - `atomic`: smallest executable unit
 - `composite`: container for child work items; must be decomposed
 
 ## Executability
+
 - `executable`: can enter `run`
 - `container`: must stay in `definition` or advance to `decompose`
 
 ## Approval State
-- `draft`, `approval_ready`, `approved`
+
+- `draft`
+- `approval_ready`
+- `approved`
+
+If `Spec Revision` changes and no longer matches `Approved Revision`, the task must return to `Approval State: approval_ready` before any refresh or execution.
 
 ## Stage Vocabulary
-- `definition`: item defined, execution not started
+
+- `definition`: item exists and is fully described, but execution has not started
 - `decompose`: item needs breakdown into child tasks
 - `run`: active execution or implementation
 - `verify`: validation of results
 - `checkup`: reconciliation and final alignment
 - `done`: terminal state
 
+## Next Stage
+
+`Next Stage` should be one of `decompose`, `run`, `verify`, `checkup`, `done`, or `none`.
+
+Use `none` only when the task is terminally blocked or already `done`.
+
 ## Workflow Entry State
-- `ready_to_start`: may enter next stage immediately
+
+- `ready_to_start`: may enter `Next Stage` immediately
 - `needs_breakdown`: composite item needs fission
-- `pending_acceptance`: automated checks passed, human acceptance required
+- `pending_acceptance`: automated validation cannot finish the task; human review is required
 - `blocked`: terminal failure or missing prerequisite
 
+`pending_acceptance` and `blocked` are gates, not stages.
+
+## Attempt And Retry Semantics
+
+- `Attempt Count` counts execution attempts and increments exactly once when `run` starts
+- `Max Retry Count` defaults to `3`
+- Allowed total attempts = `1 + Max Retry Count`
+- When a verification failure happens on attempt `N`, it is retryable if `N <= Max Retry Count`
+- In practice, with `Max Retry Count: 3`, failures on attempts `1`, `2`, and `3` may still yield `fail_retryable`; a failure on attempt `4` must end in `fail_terminal`
+
+This makes retry budget deterministic without relying on ambiguous off-by-one interpretation.
+
+## Code Publication State
+
+- `not_applicable`: no code artifact needs publication for this transition
+- `local_only`: relevant code changes exist locally but have not been published
+- `published`: the accepted code state has been committed and pushed, or otherwise durably published
+
+`checkup` may only finalize `done` when `Code Publication State` is `published` or `not_applicable`.
+
 ## Pass/Fail Outcome
-- `pass`: verification successful
-- `fail_retryable`: verification failed, self-correction possible
-- `fail_terminal`: verification failed, max retries reached
+
+- `pass`: completion evidence exists
+- `fail_retryable`: verification failed and control returns to `run`
+- `fail_terminal`: verification failed and should not be retried
+
+When validation has not yet completed, `Pass/Fail Outcome` may be omitted.
+
+## Completion Basis
+
+- `verified`: automated checks passed and the published code ref is recorded
+- `accepted`: a human accepted the published code ref
+- `aggregated`: a composite task was satisfied by recorded completion of its child tasks
+
+## Structured Workflow Events
+
+Any skill that mutates workflow state must post a short human-readable summary to the linked issue and include a machine-readable event block.
+
+The event schema is fixed:
+
+```yaml
+iron_tree:
+  version: 1
+  task_key: dark-mode-toggle
+  issue_number: 8
+  spec_revision: a1b2c3d4
+  approved_revision: a1b2c3d4
+  sequence: 4
+  event: verify_failed_retryable
+  current_stage: run
+  next_stage: verify
+  workflow_entry_state: ready_to_start
+  approval_state: approved
+  attempt_count: 2
+  max_retry_count: 3
+  code_publication_state: local_only
+  pass_fail_outcome: fail_retryable
+  completion_basis: null
+  code_ref: null
+```
+
+Rules:
+
+- `sequence` must increase monotonically by `1` for each state-changing event on the same `Task Key` and `Approved Revision`
+- Recovery must ignore malformed events and any event whose `Approved Revision` does not match the task's current approved revision
+- Human free-form comments without a valid event block are informational only and must not drive reconciliation
+
+Allowed `event` values:
+
+- `task_published`
+- `task_reapproval_required`
+- `run_started`
+- `run_completed`
+- `verify_passed`
+- `verify_publication_failed`
+- `verify_failed_retryable`
+- `verify_failed_terminal`
+- `verify_pending_acceptance`
+- `checkup_preflight_blocked`
+- `checkup_accept_recorded`
+- `checkup_aggregate_recorded`
+- `checkup_done`
+
+## Identity Model
+
+- `Task Key` is the canonical logical identity
+- `Issue Number` is the published source-system locator
+- Local brief paths default to `.mino/briefs/issue-<Issue Number>.md` after publication
+- Skills may accept either a task key or an issue locator from the user, but they must resolve back to `Task Key` before scheduling or reconciliation
 
 ## Advancement Rules
 
+### task publish
+
+- After explicit approval, `task` creates or refreshes issues and briefs
+- `task` must compute `Spec Revision` from the normalized source doc and DAG
+- If an existing task with the same `Task Key` has a different `Approved Revision`, `task` must require fresh approval for the current `Spec Revision` before publish continues
+- Initial `Current Stage` is `definition`
+- `container` / `composite` tasks start with `Next Stage: decompose` and `Workflow Entry State: needs_breakdown`
+- `executable` / `atomic` tasks start with `Next Stage: run` and `Workflow Entry State: ready_to_start`
+- Published tasks set `Approved Revision = Spec Revision`, `Attempt Count = 0`, `Max Retry Count = 3`, and `Code Publication State = not_applicable`
+
 ### run
-- Normal: `definition` → `run` (if approved and executable)
-- Execution Complete: `run` → `verify`
-- Self-Correction: if `Failure Context` present, adjust strategy and increment retry counter
+
+- Precondition: `Approval State: approved`, `Approved Revision = Spec Revision`, `Executability: executable`, `Workflow Entry State: ready_to_start`
+- `run` must perform `checkup pre-flight` before scheduling work
+- `Attempt Count` increments once when `run` starts
+- Execution start: `Current Stage: run`, `Next Stage: verify`
+- If code files changed, `Code Publication State` becomes `local_only`
+- Execution complete: `Current Stage: verify`
 
 ### verify
-- Success: `verify` → `checkup`
-- Retryable Failure: `verify` → `run` (if retries < max)
-- Terminal Failure: mark `blocked` (if retries >= max)
-- Manual Acceptance: mark `pending_acceptance`
+
+- Success: publish code first if needed, then record `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Code Publication State: published|not_applicable`, `Pass/Fail Outcome: pass`, `Completion Basis: verified`
+- Publication failure after checks pass: keep `Current Stage: verify`, `Next Stage: verify`, `Workflow Entry State: ready_to_start`, `Code Publication State: local_only`, leave `Pass/Fail Outcome` and `Completion Basis` unset, persist the publication error in `Failure Context`, emit `verify_publication_failed`, and do not increment `Attempt Count` or consume retry budget
+- Retryable failure: `Current Stage: run`, `Next Stage: verify`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: fail_retryable`
+- Terminal failure: `Current Stage: verify`, `Next Stage: none`, `Workflow Entry State: blocked`, `Pass/Fail Outcome: fail_terminal`
+- Manual acceptance required: `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`
+- No-tooling verification also routes to `pending_acceptance`; it does not auto-pass the task
 
 ### checkup
-- Alignment: `checkup` → `done`
+
+- `pre-flight` validates readiness and may mark `Workflow Entry State: blocked`, but must never write `done`
+- `accept` records human acceptance for a task in `pending_acceptance`, binds it to a published `code_ref`, then transitions it to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: accepted`
+- `aggregate` records aggregate completion for a `composite` / `container` task after all required children are `done`; it transitions the parent to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: aggregated`
+- `reconcile` aligns the local brief with authoritative issue state by replaying the highest valid `sequence` for the active approved revision
+- Final alignment: `checkup` → `done` only when `Completion Basis` is `verified`, `accepted`, or `aggregated`, and `Code Publication State` is not `local_only`
 
 ## Interpretation
-- `done` means execution, verification, and reconciliation are complete
-- `fail_retryable` is an internal loop; it triggers a new execution attempt
-- Execution is not proof of correctness; only `pass` enables `done`
+
+- `done` means execution, verification or acceptance or aggregation, publication if needed, and reconciliation are complete
+- `fail_retryable` is an internal loop; it hands control back to `run`
+- Execution is not proof of correctness; only recorded completion evidence enables `done`
+- A repository with no build/test/lint tooling must still go through manual acceptance before `done`

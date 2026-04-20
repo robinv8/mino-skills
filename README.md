@@ -8,7 +8,7 @@ Turn a Markdown spec into executed, verified code — regardless of which AI age
 
 ## What is this?
 
-A set of four engineering skills that implement the **Iron Tree Protocol**: an opinionated workflow for taking a Markdown requirement document all the way through execution, verification, and reconciliation.
+A set of four engineering skills that implement the **Iron Tree Protocol**: an opinionated workflow for taking a Markdown requirement document all the way through execution, verification, acceptance when needed, composite aggregation, and reconciliation.
 
 ```
 Markdown spec → /task → DAG approval → /run → /verify → /checkup → done
@@ -23,7 +23,7 @@ No GUI. No runtime. No deposition events. Just prompts that agents follow.
 | **task** | Read a Markdown doc, extract a task DAG, ask for approval, create issues + local briefs |
 | **run** | Execute an approved DAG serially, self-correct from prior verification failures |
 | **verify** | Build, test, lint. Pass/fail with actionable context |
-| **checkup** | Environment check, brief reconciliation, health report |
+| **checkup** | Environment check, brief reconciliation, manual acceptance, composite aggregation |
 
 ## Structure
 
@@ -146,7 +146,7 @@ EOF
 /task feature.md
 ```
 
-`task` reads the doc, classifies it, extracts a DAG, and **asks for your approval** before creating any issues or briefs.
+`task` reads the doc, classifies it, extracts a DAG, computes a revisioned task graph, and **asks for your approval** before creating any issues or briefs. The generated `.mino/briefs/` files are local workflow cache and should not be committed.
 
 ### 3. Execute (`run`)
 
@@ -154,7 +154,7 @@ EOF
 /run issue-8
 ```
 
-`run` picks the next eligible task from the DAG, reads target files, makes changes, and hands off to verification.
+`run` picks the next eligible task from the DAG, resolves the canonical `Task Key`, increments the attempt counter, makes changes, and hands off to verification.
 
 ### 4. Verify (`verify`)
 
@@ -168,22 +168,24 @@ Runs build, tests, linters. Results:
 - ✅ **pass** → advances to `checkup`
 - ❌ **retryable** → feeds `Failure Context` back to `run` (max 3 retries)
 - 🚫 **terminal** → blocks the task
-- ⏸️ **manual acceptance** → stops for human review
+- ⏸️ **manual acceptance** → stops for human review, then continue with `/checkup accept issue-8`
 
 ### 5. Reconcile (`checkup`)
 
 ```
-/checkup
+/checkup reconcile
+/checkup accept issue-8
+/checkup aggregate issue-1
 ```
 
-Aligns local briefs with source tasks. Reports health status.
+`checkup` handles pre-flight checks, brief reconciliation, recording manual acceptance, and aggregating composite parents before a task can reach `done`.
 
 ## The Iron Tree Protocol
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   task      │────▶│    run      │────▶│   verify    │
-│  intake     │     │  execute    │     │   validate  │
+│  define     │     │  execute    │     │   validate  │
 └─────────────┘     └─────────────┘     └──────┬──────┘
                                                │
                           ┌────────────────────┼────────────────────┐
@@ -203,6 +205,9 @@ Aligns local briefs with source tasks. Reports health status.
 - **Self-correction**: `verify` failures feed `Failure Context` back to `run` for a different approach
 - **Serial execution**: DAG nodes run one at a time (v1), respecting `depends_on`
 - **Approval gates**: Human must approve the DAG before any execution begins
+- **Manual acceptance**: if automation cannot prove correctness, `verify` stops at `pending_acceptance` and `checkup accept` records the human decision
+- **Revision-aware approval**: published work stays executable only while `Spec Revision` matches `Approved Revision`
+- **Canonical identity**: `Task Key` is the protocol identity; `issue-8` is a user-facing locator after publish
 
 ## References
 
@@ -214,7 +219,7 @@ Aligns local briefs with source tasks. Reports health status.
 
 - Agent Skills compatible agent (Claude Code, Cursor, Copilot, Goose, Gemini CLI, etc.)
 - `gh` CLI for GitHub issue creation
-- `.mino/briefs/` directory (created automatically on first use)
+- `.mino/briefs/` directory (created automatically on first use, local-only and not committed)
 
 ## Related
 
