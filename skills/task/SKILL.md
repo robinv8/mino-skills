@@ -31,6 +31,10 @@ Read a user-specified local Markdown requirement document, extract a Directed Ac
    Do NOT proceed until the user explicitly approves.
 6. **Publish** — after approval:
    - Create GitHub issues for each task (parent + children)
+   - Apply labels based on classification:
+     - `feature` → label `enhancement` (or `feature` if that label exists)
+     - `bug` → label `bug`
+     - Use `gh issue create --label` flag; skip gracefully if label does not exist
    - Link children to parent
    - Generate local briefs in `.mino/briefs/issue-{N}.md`
 
