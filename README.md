@@ -48,22 +48,24 @@ mino-skills/
 
 The [`skills`](https://github.com/vercel-labs/skills) CLI installs skills to 45+ AI tools with one command.
 
+在项目目录下运行：
+
 **Claude Code**
 
 ```bash
-npx skills add robinv8/mino-skills -a claude-code -g -y
+npx skills add robinv8/mino-skills -a claude-code -y
 ```
 
 **Codex**
 
 ```bash
-npx skills add robinv8/mino-skills -a codex -g -y
+npx skills add robinv8/mino-skills -a codex -y
 ```
 
 **Cursor**
 
 ```bash
-npx skills add robinv8/mino-skills -a cursor -g -y
+npx skills add robinv8/mino-skills -a cursor -y
 ```
 
 **Other tools**
@@ -73,14 +75,14 @@ npx skills add robinv8/mino-skills -a cursor -g -y
 npx skills add --help
 
 # Install to multiple agents at once
-npx skills add robinv8/mino-skills -a claude-code -a codex -g -y
+npx skills add robinv8/mino-skills -a claude-code -a codex -y
 ```
 
 **Options**
 
 | Flag | Meaning |
 |------|---------|
-| `-g, --global` | Install to user directory (available in all projects) |
+| `-g, --global` | Install to user directory (available in all projects). Omit for project-level install |
 | `-a, --agent` | Target agent(s). Omit to auto-detect |
 | `-y, --yes` | Skip confirmation prompts |
 | `--copy` | Copy files instead of symlinks |
@@ -225,25 +227,26 @@ Aligns local briefs with source tasks. Reports health status.
 ### Using `skills` CLI
 
 ```bash
-# Remove from all agents
+# Remove from current project
+npx skills remove robinv8/mino-skills
+
+# Remove globally (from all projects)
 npx skills remove robinv8/mino-skills -g
 
-# Remove from a specific agent
+# Remove from a specific agent globally
 npx skills remove robinv8/mino-skills -a claude-code -g
 ```
 
 ### Manual uninstall
 
 ```bash
-# Claude Code
-rm -rf ~/.claude/skills/mino
-
-# Cursor / Codex / OpenCode
-rm -rf ~/.agents/skills/mino
-
-# Or project-level
+# Project-level
 rm -rf .claude/skills/mino
 rm -rf .agents/skills/mino
+
+# Or globally
+rm -rf ~/.claude/skills/mino
+rm -rf ~/.agents/skills/mino
 ```
 
 ## License
