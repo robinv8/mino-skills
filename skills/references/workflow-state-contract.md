@@ -23,6 +23,7 @@ Every workflow-driven work item must carry these fields:
 - `Pass/Fail Outcome` (optional until completion evidence exists)
 - `Completion Basis` (optional until the task is ready to finalize)
 - `Halt Reason` (optional; set only when Loop Mode halts on this task; see `iron-tree-protocol.md` § Execution Modes)
+- `Verify Anchor SHA` (optional; set when `verify` starts; records the commit SHA being verified)
 
 Local briefs also carry workflow cache fields for scheduling and recovery:
 

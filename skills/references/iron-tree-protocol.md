@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.3
+> Version: 1.4
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -35,24 +35,50 @@ The protocol shifts work from ad hoc prompting to a state-machine driven loop wi
 3. If the runway is broken, mark the task `blocked`
 4. Never transition a task to `done` during pre-flight
 
+## Execution Lock
+
+The protocol guarantees serial execution of `run` at the repository level. Only one `run` may be active at any time.
+
+- Before entering Phase 4, `run` checks for `.mino/run.lock`
+- If the lock exists, `run` refuses execution and reports the active task key and start time
+- On successful entry, `run` writes the lock with its task key and ISO timestamp
+- On normal completion or unrecoverable failure, `run` removes the lock
+- A stale lock (older than a configurable threshold, default 2 hours) may be overridden with explicit confirmation
+
+V1 executes DAG nodes serially even when they have no mutual dependencies. Parallel execution is deferred to v3 after conflict detection and file-lock advisory semantics are fully specified.
+
 ### Phase 4: Execution (`run`)
 
-1. Rebuild the DAG from brief metadata, using issue metadata as fallback
-2. Select the next atomic task whose `depends_on` are `done`
-3. Assert an advisory lock on target files
-4. Increment `Attempt Count`
-5. Modify the codebase
-6. Handoff to `verify`
+1. Check `.mino/run.lock`; if present, refuse execution
+2. Acquire lock with task key and ISO timestamp
+3. Rebuild the DAG from brief metadata, using issue metadata as fallback
+4. Select the next atomic task whose `depends_on` are `done`
+5. Assert an advisory lock on target files
+6. Increment `Attempt Count`
+7. Modify the codebase
+8. Handoff to `verify`
 
 ### Phase 5: Validation (`verify`)
 
-1. Execute explicit repo-native checks, preferring `.mino/config.yml` overrides
-2. Compare observed results to acceptance criteria
-3. On recoverable failure, write `Failure Context` and hand control back to `run`
-4. On unrecoverable failure, mark the task `blocked`
-5. If automation cannot complete verification, stop at `pending_acceptance`
-6. On success, publish code first if needed, then transition to `checkup`
-7. If publication fails after checks pass, stay in `verify`, preserve the local code state, record publication failure context, and retry publication instead of falsely recording success; this does not consume retry budget
+1. Record `Verify Anchor SHA` = current HEAD commit
+2. Execute explicit repo-native checks, preferring `.mino/config.yml` overrides
+3. Compare observed results to acceptance criteria
+4. On recoverable failure, write `Failure Context` and hand control back to `run`
+5. On unrecoverable failure, mark the task `blocked`
+6. If automation cannot complete verification, stop at `pending_acceptance`
+7. On success, publish code first if needed, then transition to `checkup`
+8. If publication fails after checks pass, stay in `verify`, preserve the local code state, record publication failure context, and retry publication instead of falsely recording success; this does not consume retry budget
+
+## Verify Anchor
+
+`verify` evaluates the codebase at a specific commit, not the working tree. This guarantees deterministic verification even if the user edits files during a long-running check.
+
+- `run` must commit its changes before handoff to `verify`
+- `verify` records `Verify Anchor SHA` = `HEAD` at the moment it starts
+- The verification result is bound to that SHA; subsequent uncommitted changes do not invalidate the result
+- If `verify` fails with `fail_retryable`, the next `run` starts from the same SHA or a newer committed state
+
+This field is required in Loop Mode so the Decision Function can distinguish between a verify-pass at a stale SHA and a verify-pass at the current SHA.
 
 ### Phase 6: Acceptance Or Aggregation (`checkup`)
 
@@ -70,6 +96,22 @@ The protocol shifts work from ad hoc prompting to a state-machine driven loop wi
 - Workflow transitions live in structured workflow events posted as issue comments
 - Local briefs are a cache for scheduling, inspection, and recovery
 - `checkup reconcile` repairs local drift by replaying valid events for the active approved revision
+
+## External Events
+
+The source system (GitHub) is authoritative for issue existence and visibility, but workflow state is authoritative for completion. When an external event contradicts workflow state, the protocol must not silently overwrite workflow state.
+
+### Issue Closed Externally
+
+When `checkup reconcile` discovers that an issue is closed on GitHub but has no `checkup_done` or equivalent terminal event in its workflow history:
+
+1. Do **not** sync the brief to `done`
+2. Record `External Event: issue_closed` on the brief
+3. Set `Workflow Entry State: blocked`
+4. Post a `checkup_reconcile_external_close_detected` event to the issue
+5. Require human confirmation before the task can advance
+
+This preserves the invariant that `done` requires recorded completion evidence, not just a closed issue tracker entry.
 
 ## DAG Rules
 

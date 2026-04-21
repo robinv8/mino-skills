@@ -322,7 +322,13 @@
 - A. 同步关闭 brief，标记 done
 - B. 标记不一致，要求人工确认（**倾向**：保留人对 GitHub 的信任，brief 不被外部操作覆盖）
 - C. 重新打开 issue
-**决议**：（待定 → 决议后写入 `iron-tree-protocol.md` 的「状态恢复」章节）
+**决议**：✅ B。reconcile 发现 issue 被外部关闭但无对应的 workflow `done` 事件时：
+- 不自动同步 brief 到 `done`（保留人对 GitHub 的信任）
+- 在 brief 的 `External Event` 字段记录 `issue_closed`，在 `Workflow Entry State` 中标记 `blocked`
+- 在 issue 评论中发布 `checkup_reconcile_external_close_detected` 事件
+- 要求人工确认后才能继续
+
+→ 已写入 `iron-tree-protocol.md` § External Events
 
 ### TC-7.2 并行执行两个 run
 **为什么重要**：影响并发模型，但 v1 可暂以"显式禁止"绕开。
@@ -331,7 +337,13 @@
 - A. v1 显式禁止（**倾向**：用 `.mino/run.lock` 文件锁，简单且可逆）
 - B. 允许无依赖任务并行，加冲突检测
 - C. 完全允许，由用户自负其责
-**决议**：（待定 → 决议后写入 `iron-tree-protocol.md` 的「执行模型」章节）
+**决议**：✅ A。v1 显式禁止并行 `run`。
+- `run` 启动前检查 `.mino/run.lock`；若存在则拒绝执行并提示当前正在运行的 task key
+- 锁文件包含 task key 和 ISO 时间戳
+- `run` 正常完成（包括 verify 阶段）或异常退出时由 `run` skill 清理锁文件
+- v3 再评估无依赖任务并行（需解决文件冲突和状态竞争）
+
+→ 已写入 `iron-tree-protocol.md` § Execution Lock
 
 ### TC-7.3 verify 期间代码被修改 ⭐ 高优先级
 **为什么重要**：直接影响**状态一致性模型** —— 协议必须定义"verify 锚定的 snapshot 是什么"。
@@ -340,7 +352,14 @@
 - A. 以 verify 启动时的 commit SHA 为准（**倾向**：run 必须先 commit 才能 verify，verify 锚定 SHA）
 - B. verify 结束时再 snapshot
 - C. 检测到变更直接 abort verify
-**决议**：（待定 → 决议后写入 `iron-tree-protocol.md` 的「verify 阶段」章节，并在 `workflow-state-contract.md` 增加 `Verify Anchor SHA` 字段）
+**决议**：✅ A。`verify` 以启动时的 commit SHA 为准。
+- `run` 必须先 commit 才能 handoff 到 `verify`（`Code Publication State: local_only → published` 在 verify 前完成）
+- `verify` 启动时记录 `Verify Anchor SHA` = 当前 HEAD
+- `verify` 只验证已提交的代码；期间工作区变更是独立的，不影响 verify 结果
+- 若 `verify` 失败（retryable），下一次 `run` 基于该 SHA 或更新的已提交代码重新开始
+- `workflow-state-contract.md` 已增加 `Verify Anchor SHA` 字段
+
+→ 已写入 `iron-tree-protocol.md` § Verify Anchor
 
 ---
 
