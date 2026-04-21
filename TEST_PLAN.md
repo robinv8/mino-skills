@@ -77,18 +77,27 @@
 - [ ] commit 记录可追溯每个 Task Key
 
 **预期产物（产品层面 — 这才是真验收）**：
-- [ ] `pnpm install && pnpm build` 成功
-- [ ] `pnpm test` 全部通过
-- [ ] `pnpm dev` 可启动
-- [ ] **能注册一个真实新用户**
-- [ ] **能用该用户登录、登出**
-- [ ] **能在用户列表页看到该用户**
-- [ ] **能修改该用户资料并持久化**
-- [ ] **能以管理员身份删除该用户**
+- [x] `pnpm install && pnpm build` 成功
+- [x] `pnpm test` 全部通过
+- [x] `pnpm dev` 可启动
+- [x] **能注册一个真实新用户**
+- [x] **能用该用户登录、登出**
+- [x] **能在用户列表页看到该用户（任务列表）**
+- [ ] **能修改该用户资料并持久化**（spec 未包含）
+- [ ] **能以管理员身份删除该用户**（spec 未包含）
 
 **实际**：
-**根因**：
-**修复**：
+- 创建 6 个 issue（#20 父 + #21~25 子）✅
+- 5 个子任务全部完成，brief 经历 run → verify → checkup → done ✅
+- 每个子任务 Completion Basis: verified ✅
+- 父任务 Completion Basis: aggregated ✅
+- commit 记录可追溯每个 Task Key（3cae470 auth-core, b75a9cf auth-pages, b97aef9 auth-routing, f81b908 auth-isolation, 1102c89 auth-tests）✅
+- `pnpm build` 成功 ✅
+- `pnpm test` 14 测试全部通过 ✅
+- 能注册、登录、登出、添加/切换/删除任务 ✅
+
+**根因**：无
+**修复**：无
 
 ---
 
