@@ -106,6 +106,14 @@ Brief updates use surgical section replacement; preserve `Open Questions / Warni
    {render templates/event-verify-passed.yml.tmpl}
    ```
 
+After recording `verify_passed`, sync the GitHub stage label:
+
+```
+gh issue edit {N} --remove-label "stage:verify" --add-label "stage:done"
+```
+
+Label sync failure is a warning, not an error: log `stage_label_sync_failed: <reason>` in the verify report and proceed. The local yml remains authoritative.
+
 #### 6.B Checks failed AND attempt budget remains
 
 A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default `Max Retry Count: 3`, attempts 1/2/3 may yield `fail_retryable`; attempt 4 must be terminal.
@@ -233,6 +241,7 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Do NOT overwrite `Open Questions / Warnings` in the brief; replace target sections only.
 - Keep narrative summaries compact; the structured event is the machine source of truth.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
+- Do NOT treat `gh issue edit` label-sync failures as fatal; the local event yml is authoritative.
 
 ## References
 

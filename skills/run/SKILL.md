@@ -162,6 +162,14 @@ Only reachable from 7.A or 7.B success.
    {render templates/event-run-completed.yml.tmpl}
    ```
 
+After the local state is updated and before releasing the lock, sync the GitHub stage label so humans see progress:
+
+```
+gh issue edit {N} --remove-label "stage:run" --add-label "stage:verify"
+```
+
+Label sync failure is a warning, not an error: log `stage_label_sync_failed: <reason>` in the run report and proceed. The local yml remains authoritative.
+
 ### Step 9: Release Lock & Hand Off
 
 1. Remove `.mino/run.lock`.
@@ -210,6 +218,7 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Do NOT overwrite `Open Questions / Warnings` in the brief; replace target sections only.
 - Always release `.mino/run.lock` on exit, including failure paths.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
+- Do NOT treat `gh issue edit` label-sync failures as fatal; the local event yml is authoritative.
 
 ## References
 
