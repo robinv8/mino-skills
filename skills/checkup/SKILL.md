@@ -59,7 +59,10 @@ The user may specify a mode. Default is `check`.
 6. **Accept** (if `accept` with a task):
    - Confirm the task is in `Workflow Entry State: pending_acceptance`
    - If relevant code changes remain unpublished, publish them first:
-     - Stage only non-brief code files
+     - Stage all changes **except** workflow-local files:
+       ```bash
+       git add -A -- ':!.mino/briefs/' ':!.mino/locks/'
+       ```
      - Commit with `[run] issue-{N}: {concise change summary}`
      - `git push`
      - Capture the resulting `HEAD` SHA as `Code Ref`
@@ -128,6 +131,7 @@ The user may specify a mode. Default is `check`.
 - Do NOT mark tasks `done` during `pre-flight` or plain `check`.
 - Do NOT record manual acceptance against an unpublished code state.
 - Do NOT close issues when `Close On Done: manual`.
+- Do NOT stage or commit `.mino/briefs/` or `.mino/locks/` during code publication — briefs are local workflow cache and must not enter the git history.
 
 ## References
 

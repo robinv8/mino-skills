@@ -45,7 +45,14 @@ Validate executed work against explicit acceptance criteria and repository-nativ
 
    Then:
    - Publish code first if relevant:
-     - If code files changed, stage only non-brief code files, commit with `[run] issue-{N}: {concise change summary}`, `git push`, and capture the resulting `HEAD` SHA as `Code Ref`
+     - If code files changed:
+       - Stage all changes **except** workflow-local files:
+         ```bash
+         git add -A -- ':!.mino/briefs/' ':!.mino/locks/'
+         ```
+       - Commit with `[run] issue-{N}: {concise change summary}`
+       - `git push`
+       - Capture the resulting `HEAD` SHA as `Code Ref`
      - If no code files changed, use `Code Publication State: not_applicable` and `Code Ref: not_applicable`
      - If commit or push fails, do NOT record success. Keep `Current Stage: verify`, `Next Stage: verify`, `Workflow Entry State: ready_to_start`, `Code Publication State: local_only`, leave `Pass/Fail Outcome` unset, persist the publication error in `Failure Context`, post a structured `verify_publication_failed` event, and do not change `Attempt Count`
    - Only after publication succeeds, update brief: `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Code Publication State: published|not_applicable`, `Pass/Fail Outcome: pass`
@@ -131,6 +138,7 @@ Validate executed work against explicit acceptance criteria and repository-nativ
 - Do NOT auto-pass a task when no verification tooling is found.
 - Do NOT record `verify_passed` before code publication has succeeded.
 - Do NOT fix the failure here — hand `Failure Context` back to `run` for self-correction.
+- Do NOT stage or commit `.mino/briefs/` or `.mino/locks/` during code publication — briefs are local workflow cache and must not enter the git history.
 - Keep success summaries compact. No prose for green checks.
 - Use `Attempt Count` and `Max Retry Count` exactly as defined in the workflow contract.
 
