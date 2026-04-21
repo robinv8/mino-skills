@@ -170,6 +170,7 @@ Brief edits are always surgical: replace only the named section header and its b
 - Do NOT stage or commit `.mino/briefs/`, `.mino/locks/`, or `.mino/run.lock` — these are local workflow cache and must not enter git history.
 - Do NOT overwrite human-authored sections (`Open Questions / Warnings`, free-form notes inside `Acceptance Criteria`, etc.).
 - Do NOT auto-sync a brief to `done` after detecting an external close — record `External Event` and stop.
+- Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 
 ## References
 

@@ -3,7 +3,7 @@
 # Mino Skills
 
 [![Version](https://img.shields.io/badge/release-v0.1.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.1.0)
-[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.7-blue)](skills/references/iron-tree-protocol.md)
+[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.8-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
 
@@ -60,7 +60,7 @@ mino-skills/
 │   │   ├── SKILL.md                     # 7 种模式，包括 pre-flight 与 finalize
 │   │   └── templates/                   # 7 个 events + 4 个 brief sections
 │   └── references/
-│       ├── iron-tree-protocol.md        # 执行循环规范 (v1.7)
+│       ├── iron-tree-protocol.md        # 执行循环规范 (v1.8)
 │       ├── workflow-state-contract.md   # Stage 词汇表 + event 白名单
 │       └── brief-contract.md            # Brief 格式（17 个 sections）
 ├── reports/

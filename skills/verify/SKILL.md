@@ -232,6 +232,7 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Do NOT invent fields in the YAML events; the schema is fixed by `workflow-state-contract.md`.
 - Do NOT overwrite `Open Questions / Warnings` in the brief; replace target sections only.
 - Keep narrative summaries compact; the structured event is the machine source of truth.
+- Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 
 ## References
 

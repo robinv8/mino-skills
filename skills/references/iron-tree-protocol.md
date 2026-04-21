@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.7
+> Version: 1.8
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -115,6 +115,20 @@ When `checkup reconcile` discovers that an issue is closed on GitHub but has no 
 5. Require human confirmation before the task can advance
 
 This preserves the invariant that `done` requires recorded completion evidence, not just a closed issue tracker entry.
+
+## Multi-Agent Git Hygiene
+
+The protocol assumes the remote (origin/main and any shared branches) is **append-only from each agent's perspective**. Multiple agents may run sequentially or concurrently against the same repository, and any one of them rewriting shared history silently destroys another agent's work.
+
+Hard rules for every skill that touches git:
+
+1. **Never `git push --force` or `--force-with-lease`** against a branch that has been pushed by anyone else, including a previous agent run.
+2. **Never `git reset --hard` to a commit older than the current `origin/<branch>` tip** when intending to push afterwards. Use `git revert` to undo published commits instead.
+3. **Never rebase or amend a commit that already exists on the remote.** Local-only commits may be rebased; once pushed, they are immutable.
+4. **Never delete a remote branch** unless the user explicitly asks.
+5. If reconciliation requires rewriting history (e.g., secret leak), stop and ask the user — this is outside the agent's authority.
+
+Rationale: agent collaboration without these rules degenerates into a last-writer-wins race where revert commits, `.gitignore` rules, and protocol fixes vanish without trace. The cost of `git revert` (one extra commit) is always lower than the cost of recovering lost work from a forced push.
 
 ## DAG Rules
 
