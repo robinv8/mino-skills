@@ -133,6 +133,33 @@
 
 ---
 
+### TC-1.2b v2 Task Skill 回归验证（对比 #21）
+
+**场景**：使用 templates/ 驱动的 v2 task skill 流程重新执行一次 task-publish → run → verify → checkup，对比 #21（auth-core，v1 手动流程）验证三个缺口是否关闭。
+
+**载体**：`specs/task-search.md` → issues #26~28
+
+**三个缺口验证**：
+
+| 缺口 | #21 (v1 手动) | #27 (v2 模板驱动) | 结论 |
+|------|---------------|-------------------|------|
+| **1. brief section 结构** | 使用 `## Status` 扁平列表，缺少 `Approval State`、`Executability` 等字段 ❌ | 使用 `templates/brief.md.tmpl`，包含全部 16 个 required sections（Issue, Classification, Dependencies, Acceptance Criteria, Verification, Target Files, Work Breakdown, Workflow State, Manual Acceptance, Failure Context, Completion Handoff, Execution Summary, Verification Summary, Pass/Fail Outcome, Open Questions / Warnings, Source）✅ | **关闭** |
+| **2. 结构化 YAML 事件** | issue 评论中无任何 `iron_tree:` block ❌ | issue #27 包含 4 个连续 sequence 事件：seq1 `task_published`, seq2 `run_started`, seq3 `verify_passed`, seq4 `checkup_done`，完整覆盖 workflow 生命周期 ✅ | **关闭** |
+| **3. GitHub depends_on** | 父子关系仅通过 brief Work Breakdown 描述，GitHub issue 本体无依赖声明 ❌ | #28 issue body 包含 `Depends on #27`，GitHub 原生识别并建立跨 issue 链接 ✅ | **关闭** |
+
+**额外验证（v1.4 新决议）**：
+
+| 决议 | 验证方式 | 结果 |
+|------|----------|------|
+| Verify Anchor SHA | `verify_passed` 事件包含 `verify_anchor_sha: 39bea0d` | ✅ 已记录 |
+| Execution Lock | 本实验为单任务串行，未触发锁竞争；`.mino/run.lock` 机制待 skill 实现后验证 | ⚠️ 待验证 |
+| External Events | 本实验无外部关闭场景，待 reconcile skill 实现后验证 | ⚠️ 待验证 |
+
+**根因**：无
+**修复**：v2 task skill 模板和事件机制已覆盖三个缺口，缺口关闭。
+
+---
+
 ## Phase 2 — 自然不完美（真实开发常遇）
 
 > 每个 TC 标注 **🌡️ 真实频率** —— 这事在真实开发里多久会发生一次。
