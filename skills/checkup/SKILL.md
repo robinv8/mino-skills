@@ -173,6 +173,6 @@ Brief edits are always surgical: replace only the named section header and its b
 
 ## References
 
-- [../references/iron-tree-protocol.md](../references/iron-tree-protocol.md)
-- [../references/brief-contract.md](../references/brief-contract.md)
-- [../references/workflow-state-contract.md](../references/workflow-state-contract.md)
+- [references/iron-tree-protocol.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/iron-tree-protocol.md)
+- [references/brief-contract.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/brief-contract.md)
+- [references/workflow-state-contract.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/workflow-state-contract.md)

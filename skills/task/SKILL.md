@@ -111,7 +111,7 @@ After approval, for each task in dependency order:
    - Write to `.mino/briefs/issue-{N}.md` after the issue number is known
    - Brief state is local cache only — do NOT stage or commit `.mino/briefs/`
 
-5. **Post the `task_published` event** by adding an issue comment rendered from `templates/event-task-published.yml.tmpl`. The event YAML schema is fixed by `../references/workflow-state-contract.md`; do not invent fields.
+5. **Post the `task_published` event** by adding an issue comment rendered from `templates/event-task-published.yml.tmpl`. The event YAML schema is fixed by `https://github.com/robinv8/mino-skills/blob/main/skills/references/workflow-state-contract.md`; do not invent fields.
 
 6. **Handle event publish failure** — if step 5 fails (network error, gh CLI failure, permissions):
    - Do NOT roll back the created issue or brief; both are already valid artifacts.
@@ -140,9 +140,9 @@ Pick `{N}` as the lowest-numbered issue whose `Workflow Entry State: ready_to_st
 
 All artifact shapes are defined by template files; this skill MUST NOT generate freehand variations.
 
-- `templates/brief.md.tmpl` — local brief format (16 sections, matches `../references/brief-contract.md`)
+- `templates/brief.md.tmpl` — local brief format (16 sections, matches `https://github.com/robinv8/mino-skills/blob/main/skills/references/brief-contract.md`)
 - `templates/issue-body.md.tmpl` — GitHub issue body format
-- `templates/event-task-published.yml.tmpl` — `task_published` event payload (matches the schema in `../references/workflow-state-contract.md`)
+- `templates/event-task-published.yml.tmpl` — `task_published` event payload (matches the schema in `https://github.com/robinv8/mino-skills/blob/main/skills/references/workflow-state-contract.md`)
 
 Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce conditional logic in templates. Variants (composite vs atomic, has-deps vs no-deps) are handled by passing different placeholder values, not by branching the template.
 
@@ -160,6 +160,6 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 
 ## References
 
-- [../references/workflow-state-contract.md](../references/workflow-state-contract.md)
-- [../references/brief-contract.md](../references/brief-contract.md)
-- [../references/iron-tree-protocol.md](../references/iron-tree-protocol.md)
+- [references/workflow-state-contract.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/workflow-state-contract.md)
+- [references/brief-contract.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/brief-contract.md)
+- [references/iron-tree-protocol.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/iron-tree-protocol.md)

@@ -212,6 +212,6 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 
 ## References
 
-- [../references/workflow-state-contract.md](../references/workflow-state-contract.md)
-- [../references/iron-tree-protocol.md](../references/iron-tree-protocol.md)
-- [../references/brief-contract.md](../references/brief-contract.md)
+- [references/workflow-state-contract.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/workflow-state-contract.md)
+- [references/iron-tree-protocol.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/iron-tree-protocol.md)
+- [references/brief-contract.md](https://github.com/robinv8/mino-skills/blob/main/skills/references/brief-contract.md)
