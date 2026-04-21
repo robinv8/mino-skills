@@ -102,7 +102,7 @@ Render `templates/brief.md.tmpl` with these substitutions for an adopted issue:
 
 Write to `.mino/briefs/issue-{N}.md`.
 
-### Adopt-Step 7: Render & post event
+### Adopt-Step 7: Render & record event (silent)
 
 If `mode = adopted`, render `templates/event-task-adopted.yml.tmpl`. If `mode = re_adopted`, render `templates/event-task-re-adopted.yml.tmpl`. In either case substitute:
 
@@ -111,13 +111,7 @@ If `mode = adopted`, render `templates/event-task-adopted.yml.tmpl`. If `mode = 
 
 Write the rendered file to `.mino/events/issue-{N}/0001-task-{adopted|re-adopted}.yml`.
 
-Then post the same content as a GitHub comment:
-
-```
-gh issue comment {N} --body-file .mino/events/issue-{N}/0001-task-{adopted|re-adopted}.yml
-```
-
-If the comment post fails: do NOT roll back the brief or local event; record `event_publish_failed` in the report (same policy as native Step 5/6).
+`task_adopted` and `task_re_adopted` are **silent** events: do NOT post a GitHub comment. If the local write fails, halt with the filesystem error; the adoption did not take effect.
 
 ### Adopt-Step 8: Apply labels
 
@@ -236,17 +230,16 @@ After approval, for each task in dependency order:
    - Write to `.mino/briefs/issue-{N}.md` after the issue number is known
    - Brief state is local cache only — do NOT stage or commit `.mino/briefs/`
 
-5. **Post the `task_published` event** by adding an issue comment rendered from `templates/event-task-published.yml.tmpl`. The event YAML schema is fixed by `https://github.com/robinv8/mino-skills/blob/main/skills/references/workflow-state-contract.md`; do not invent fields.
+5. **Record the `task_published` event locally** — render `templates/event-task-published.yml.tmpl`, write to `.mino/events/issue-{N}/0001-task-published.yml`. This event is **silent**: do NOT post a GitHub comment.
 
-6. **Handle event publish failure** — if step 5 fails (network error, gh CLI failure, permissions):
-   - Do NOT roll back the created issue or brief; both are already valid artifacts.
-   - Mark this task in the publish report as `event_publish_failed`.
-   - Continue publishing remaining tasks; one failure does not abort the batch.
-   - In the final report, instruct the user to manually re-post via `gh issue comment {N} --body-file <rendered-event-file>`, or to run `/checkup reconcile` once available.
+6. **Handle local event write failure** — if step 5 fails (filesystem error, permission):
+   - Do NOT roll back the created issue or brief.
+   - Mark this task in the publish report as `local_event_write_failed` and print the exact filesystem error.
+   - The user must resolve the write failure and manually re-invoke `/task <spec>` (idempotent — task_key resolves to the existing issue, only the event file is re-created).
 
 7. **Sync stage label** — `gh issue edit {N} --add-label "stage:task"` (idempotent).
 
-   For native publishes the issue starts at `stage:task`; transition to `stage:run` happens when the user approves and `/run` is invoked. (Approval-time label flip: when `task` records the user's `yes`, before exiting Step 5, run `gh issue edit {N} --remove-label "stage:task" --add-label "stage:run"` for each newly-approved task. Failures here are warnings, not errors.)
+   For native publishes the issue starts at `stage:task`; transition to `stage:run` happens when the user approves and `/run` is invoked. (Approval-time label flip: when `task` records the user's `yes`, before exiting Step 5, run `gh issue edit {N} --remove-label "stage:task" --add-label "stage:run"` for each newly-approved task. Failures here are warnings, not errors. Label sync is not an event and does not write a local yml.)
 
 ### Step 6: Report
 
@@ -290,6 +283,8 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Do NOT delete the archived directory created during re-adopt; it is the audit trail.
 - Do NOT treat label sync failures as fatal; the local yml is authoritative.
 - Do NOT skip the `gh auth status` precheck — the user's project may not have gh logged in.
+- Do NOT post a GitHub comment for `task_published`, `task_adopted`, or `task_re_adopted` — all three are silent events in v1.10.
+- Do treat local event file write failure as fatal for the task; the event did not happen unless the local file exists.
 
 ## References
 
