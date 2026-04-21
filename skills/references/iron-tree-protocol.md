@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.8
+> Version: 1.9
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -129,6 +129,65 @@ Hard rules for every skill that touches git:
 5. If reconciliation requires rewriting history (e.g., secret leak), stop and ask the user — this is outside the agent's authority.
 
 Rationale: agent collaboration without these rules degenerates into a last-writer-wins race where revert commits, `.gitignore` rules, and protocol fixes vanish without trace. The cost of `git revert` (one extra commit) is always lower than the cost of recovering lost work from a forced push.
+
+## Adopting Existing Issues
+
+The protocol's native entry point is `/task <spec.md>`, which posts `task_published` at sequence 1. Repositories that pre-existed the protocol have issues without this event; `run` / `verify` / `checkup` therefore refuse to operate on them.
+
+`/task adopt issue-N` is the standard on-ramp. It produces the **same shape of artifacts** as native publication so downstream skills cannot tell the difference:
+
+- A local brief at `.mino/briefs/issue-{N}.md` (same template as native)
+- An event yml at `.mino/events/issue-{N}/0001-task-adopted.yml` with `event: task_adopted` and `sequence: 1`
+- An issue comment carrying the same yml block, so reconciliation can replay it
+- A pair of GitHub labels marking workflow position: `iron-tree:adopted` (permanent) + `stage:task` (mutable)
+
+### Eligibility
+
+`/task adopt issue-N` accepts an issue iff:
+
+1. The issue exists and is `OPEN` on the host repository
+2. The issue body does not declare more than `COMPOSITE_THRESHOLD = 3` open checkboxes (`- [ ]`); composite issues must be broken into child issues by the human first
+3. Any prior `iron-tree:adopted` label triggers **re-adopt** semantics, not refusal
+
+Closed issues are refused with a clear error.
+
+### Spec Identity for Adopted Issues
+
+Adopted issues have no Markdown spec. The protocol synthesizes:
+
+```
+spec_path     = github://issue-{N}
+spec_revision = sha256( normalize(issue_title) + "\n---\n" + normalize(issue_body) )[:8]
+```
+
+`normalize` is the same transformation used by `task` (strip trailing whitespace, CRLF→LF, collapse blank-line runs).
+
+### Re-adoption
+
+If `iron-tree:adopted` already exists on the issue:
+
+1. Move the existing `.mino/briefs/issue-{N}.md` and `.mino/events/issue-{N}/` into `.mino/archive/issue-{N}-rev-{previous_spec_revision}/`
+2. Compute fresh `spec_revision` from current title + body
+3. Emit `task_re_adopted` (sequence 1 of the new chain) instead of `task_adopted`; the event carries `previous_revision` and `archive_path`
+4. Remove any `stage:run` / `stage:verify` / `stage:done` label and apply `stage:task`
+5. Approval must be re-requested from the user (same gate as a native re-approval)
+
+### Stage Label Lifecycle
+
+`stage:*` labels are **mutually exclusive** and mirror the active workflow stage:
+
+| Transition | Performed by | Trigger |
+|---|---|---|
+| (none) → `stage:task` | `task` | `/task adopt` succeeds, or native `task` publishes |
+| `stage:task` → `stage:run` | `task` | User approval recorded |
+| `stage:run` → `stage:verify` | `run` | Step 7 commit succeeds (or `not_applicable` path) |
+| `stage:verify` → `stage:done` | `verify` | `verify_passed` recorded |
+
+Failure paths **do not move the label**: a stuck issue's GitHub label tells the human exactly where it halted. Label sync failures (gh CLI down, missing permission) are non-fatal: the skill records a `stage_label_sync_failed` warning in its report and continues; the local yml remains authoritative.
+
+### PR Out of Scope
+
+Pull Requests are not adopted. PRs continue to merge against an issue; merging does not by itself transition any label.
 
 ## DAG Rules
 

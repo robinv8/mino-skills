@@ -168,6 +168,8 @@ Allowed `event` values:
 - `checkup_reconcile_sequence_gap_detected`
 - `loop_halted` (Loop Mode handed control back to a human; see `iron-tree-protocol.md` § Execution Modes; carries a `halt_reason` field)
 - `loop_resumed` (a human re-engaged after a previous `loop_halted`; carries the prior `halt_reason` for traceability)
+- `task_adopted` (sequence 1; opens an adopted chain; carries `adopted_from: github_issue`, `original_title`, `issue_url`)
+- `task_re_adopted` (sequence 1; opens a fresh chain after re-adopt; carries `previous_revision`, `archive_path`)
 
 ## Halt Reason
 
