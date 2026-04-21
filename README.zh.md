@@ -148,6 +148,24 @@ cat skills/task/SKILL.md
 # 粘贴到 ChatGPT、Claude、Cursor 或任意 AI 对话中
 ```
 
+## 更新
+
+`mino-skills` 遵循标准 Agent Skills 约定：`main` 始终是已发布分支，`skills` CLI 按需拉取最新内容。
+
+```bash
+# 在你的项目里 —— 把项目内所有已安装 skill 升级到 main 最新
+npx skills update -y
+
+# 查看当前已安装的 skill
+npx skills list
+```
+
+> 注意：CLI 用 **skill 名字**（`task` / `run` / `verify` / `checkup`）追踪，而不是源仓库。所以 `npx skills update robinv8/mino-skills` 会报 "no installed skills found"，使用裸的 `npx skills update -y` 即可。
+
+更新只会覆盖 `.claude/skills/<name>/` 或 `.agents/skills/<name>/` 内的文件。你的本地工作流数据 —— `.mino/briefs/`、`.mino/run.lock`、GitHub issue 和 event comment —— 完全不会被动到。
+
+协议小版本升级保证向后兼容：升级时正在运行的状态机不需要迁移。大版本升级（如 `v2.0`）如有破坏性变更，会在 README 顶部写明迁移步骤。
+
 ## 使用
 
 ### 1. 编写需求文档

@@ -148,6 +148,24 @@ cat skills/task/SKILL.md
 # Paste into ChatGPT, Claude, Cursor, or any AI chat
 ```
 
+## Update
+
+`mino-skills` follows the standard Agent Skills convention: `main` is always the released branch, and the `skills` CLI pulls the latest content on demand.
+
+```bash
+# In your project — refresh ALL installed skills to the latest main
+npx skills update -y
+
+# Inspect what is currently installed
+npx skills list
+```
+
+> Heads-up: the CLI tracks each skill by its **skill name** (`task`, `run`, `verify`, `checkup`), not by its source repo. Running `npx skills update robinv8/mino-skills` therefore reports "no installed skills found" — use the bare `npx skills update -y` form instead.
+
+The update overwrites only the files inside `.claude/skills/<name>/` or `.agents/skills/<name>/`. Your local workflow data — `.mino/briefs/`, `.mino/run.lock`, GitHub issues, and event comments — is untouched.
+
+Protocol upgrades are designed to be backward compatible at minor versions: state machines that are mid-flight when you update keep working without migration. Major-version bumps (e.g., `v2.0`) will document any required action at the top of this README.
+
 ## Usage
 
 ### 1. Write a requirement doc
