@@ -263,7 +263,7 @@ rm -rf ~/.agents/skills/mino
 2. **修改** `SKILL.md` 或添加新技能
 3. **提交 PR**，描述变更动机和影响范围
 
-如有疑问，请联系 dev@example.com。
+如有疑问，请联系 support@example.com。
 
 ## License
 
