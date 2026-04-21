@@ -1,0 +1,64 @@
+# {{ title }}
+
+## Issue
+- Task Key: {{ task_key }}
+- Issue Number: {{ issue_number }}
+- GitHub: {{ github_url }}
+- Parent Issue: {{ parent_issue_url_or_none }}
+
+## Classification
+- Type: {{ type }}
+- Shape: {{ shape }}
+- Executability: {{ executability }}
+- Approval State: approved
+
+## Dependencies
+- Depends On: {{ depends_on_task_keys_or_none }}
+
+## Acceptance Criteria
+{{ acceptance_criteria_checklist }}
+
+## Verification
+{{ verification_steps }}
+
+## Target Files
+{{ target_files_list }}
+
+## Work Breakdown
+{{ work_breakdown_or_not_applicable }}
+
+## Workflow State
+- Spec Revision: {{ spec_revision }}
+- Approved Revision: {{ spec_revision }}
+- Current Stage: definition
+- Next Stage: {{ next_stage }}
+- Workflow Entry State: {{ workflow_entry_state }}
+- Attempt Count: 0
+- Max Retry Count: 3
+- Code Publication State: not_applicable
+
+## Manual Acceptance
+_(not yet — populated when verify routes to pending_acceptance)_
+
+## Failure Context
+_(not yet — populated on verify failure)_
+
+## Completion Handoff
+- Completion Basis: _(not yet)_
+- Code Ref: _(not yet)_
+
+## Execution Summary
+_(not yet — populated by run)_
+
+## Verification Summary
+_(not yet — populated by verify or checkup)_
+
+## Pass/Fail Outcome
+_(not yet)_
+
+## Open Questions / Warnings
+_(human-addable; preserve any content here on regeneration)_
+
+## Source
+- Spec: `{{ spec_path }}`
+- Published At: {{ iso_timestamp }}

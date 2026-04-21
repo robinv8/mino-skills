@@ -1,0 +1,28 @@
+{{ description_paragraph }}
+
+## Status
+- Task Key: {{ task_key }}
+- Spec Revision: {{ spec_revision }}
+- Approved Revision: {{ spec_revision }}
+- Approval State: approved
+- Current Stage: definition
+- Next Stage: {{ next_stage }}
+- Workflow Entry State: {{ workflow_entry_state }}
+- Attempt Count: 0
+- Max Retry Count: 3
+- Code Publication State: not_applicable
+- Close On Done: {{ close_on_done }}
+- Depends On: {{ depends_on_task_keys_or_none }}
+
+## Dependencies
+{{ depends_on_github_links_block }}
+
+## Acceptance Criteria
+{{ acceptance_criteria_checklist }}
+
+## Verification
+{{ verification_steps }}
+
+## Source
+- Spec: `{{ spec_path }}`
+- Parent Issue: {{ parent_issue_url_or_none }}
