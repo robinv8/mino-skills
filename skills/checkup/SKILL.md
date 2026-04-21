@@ -64,16 +64,21 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
 1. List local briefs: `ls .mino/briefs/issue-*.md`.
 2. List source tasks: `gh issue list --state all --limit 200`.
 3. For each brief in scope:
-   - Pull all issue comments and parse YAML events whose `task_key` and `approved_revision` match the brief.
+   - Sources of truth, tried in order:
+     1. **Local events** — glob `.mino/events/issue-{N}/*.yml`. Parse yml blocks, keep those whose `task_key` and `approved_revision` match the brief. This is the primary source.
+     2. **Terminal summary comment** (fallback for `done` issues when local log is missing) — pull all issue comments, pick the one whose body matches the summary template's signature (`🏁 Issue ... done` + `events_inline_yaml_blocks`), extract each inlined yml block.
+     3. **Legacy per-event comments** (fallback for pre-v1.10 issues) — pull issue comments, parse every yml event block directly.
+   - If primary yields events, use only primary. Fallbacks are invoked only when primary is empty.
+   - If multiple sources are present and their event chains diverge (same sequence, different event), halt with `checkup_reconcile_sequence_gap_detected` and require human intervention.
    - **Sequence gap detection**: list the `sequence` values of every parsed event. If they are not a contiguous run starting at `1`, treat the gaps as missing canonical evidence:
      - Replay events up to the highest contiguous sequence (`max(sequences) such that 1..max are all present`); ignore events past the first gap because their state assumes evidence that no longer exists.
-     - Render `templates/event-checkup-reconcile-sequence-gap.yml.tmpl` with `found_sequences`, `missing_sequences`, and `highest_replayable_sequence`. Post as the next sequenced comment so the warning itself does not introduce a further gap.
+     - Render `templates/event-checkup-reconcile-sequence-gap.yml.tmpl` with `found_sequences`, `missing_sequences`, and `highest_replayable_sequence`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-sequence-gap.yml`, then post as an audible comment including `Local events: \`.mino/events/issue-{N}/\`` above the yml block so the warning itself does not introduce a further gap.
      - Do NOT advance the workflow past `Workflow Entry State: blocked` until the operator reviews the gap (e.g. recovers the deleted comment, or runs `/task` to re-publish a fresh `approved_revision`).
    - Replay events in ascending `sequence` order to rebuild the canonical workflow state. Surgically replace `Workflow State`, `Pass/Fail Outcome`, and `Completion Handoff` sections from the resulting state. Never overwrite `Open Questions / Warnings`.
    - **External close detection**: if the source issue is `closed` but no `checkup_done` event exists for the active approved revision:
      - Set `Workflow Entry State: blocked` in the brief.
      - Render `templates/brief-section-external-event.md.tmpl` (event=`issue_closed`, source=`github`, action=`Investigate the close reason and either re-open the issue with /task or accept the close as final`) and surgically replace the `External Event` section.
-     - Render `templates/event-checkup-reconcile-external-close.yml.tmpl` and post as comment.
+     - Render `templates/event-checkup-reconcile-external-close.yml.tmpl`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-external-close.yml`, then post as an audible comment including `Local events: \`.mino/events/issue-{N}/\`` above the yml block.
      - Do NOT mark the task `done`. Do NOT auto-sync brief to a completed state.
 4. Emit a `Pending Acceptance` subsection in the report listing every task still in `pending_acceptance` with the next manual action.
 
@@ -99,7 +104,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - `Pass/Fail Outcome: pass`
    - `Completion Basis: accepted`
    - `Code Ref:` and `Code Publication State:` per step 2
-5. Render `templates/event-checkup-accept-recorded.yml.tmpl` and post as comment.
+5. Render `templates/event-checkup-accept-recorded.yml.tmpl` and write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-accept-recorded.yml`. **Silent**: do NOT post a GitHub comment.
 6. Remove the `pending-acceptance` label from the issue.
 7. Proceed to **Finalize** (below).
 
@@ -118,7 +123,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - `Completion Basis: aggregated`
    - `Code Publication State: not_applicable`
    - `Code Ref: not_applicable`
-5. Render `templates/event-checkup-aggregate-recorded.yml.tmpl` and post as comment.
+5. Render `templates/event-checkup-aggregate-recorded.yml.tmpl` and write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-aggregate-recorded.yml`. **Silent**: do NOT post a GitHub comment.
 6. Proceed to **Finalize** (below).
 
 ## Finalize
@@ -134,7 +139,14 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
 2. Surgically update brief metadata:
    - `Current Stage: done`
    - `Next Stage: none`
-3. Render `templates/event-checkup-done.yml.tmpl` with the bound `completion_basis`, `code_ref`, and `code_publication_state`; post as the next sequenced comment.
+3. **Record `checkup_done` locally** — render `templates/event-checkup-done.yml.tmpl` with the bound `completion_basis`, `code_ref`, `code_publication_state`, and write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-done.yml`.
+
+4. **Post consolidated terminal summary comment** — render `templates/comment-checkup-summary.md.tmpl`:
+   - Scan `.mino/events/issue-{N}/` for all files matching `*.yml` whose `approved_revision` equals the task's current approved revision
+   - Sort by filename (sequence prefix)
+   - Concatenate each file's content (narrative + yml block + trailing newline) with `--- sequence {N} · {event} ---` separators, producing `events_inline_yaml_blocks`
+   - Render the template, post as a single `gh issue comment {N} --body-file <rendered>` call
+   - If the comment post fails: log `comment_post_failed: <reason>` in the report, do NOT retry automatically (the user can re-run `/checkup issue-{N}` which is idempotent). The local events are authoritative regardless.
 4. Issue closure:
    - If brief `Close On Done: auto` and the issue is still open: `gh issue close {N} --reason completed`.
    - If `Close On Done: manual`: leave the issue open and post:
@@ -148,7 +160,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
 
 ## Sequence numbers
 
-Events posted by checkup share the same sequence space as task / run / verify events. Before posting any event, fetch the current max sequence for the active `approved_revision` from the issue comments and use `max + 1`.
+Events posted by checkup share the same sequence space as task / run / verify events. Before writing any event, fetch the current max sequence for the active `approved_revision` from the **local event log** (`ls .mino/events/issue-{N}/` + parse filename prefixes) and use `max + 1`. GitHub comments are no longer the sequence source.
 
 ## Templates
 
@@ -171,6 +183,9 @@ Brief edits are always surgical: replace only the named section header and its b
 - Do NOT overwrite human-authored sections (`Open Questions / Warnings`, free-form notes inside `Acceptance Criteria`, etc.).
 - Do NOT auto-sync a brief to `done` after detecting an external close — record `External Event` and stop.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
+- Do NOT post individual comments for `checkup_accept_recorded` or `checkup_aggregate_recorded` — silent in v1.10.
+- Do post a single consolidated summary comment at `checkup_done`, inlining every local event yml block in sequence order.
+- Do NOT derive sequence from issue comments; read from `.mino/events/issue-{N}/` filenames.
 
 ## References
 
