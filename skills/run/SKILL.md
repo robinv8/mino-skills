@@ -61,15 +61,7 @@ Capture `attempt_count_before = Attempt Count` for potential rollback in Step 7.
    - `Next Stage: verify`
    - `Workflow Entry State: ready_to_start`
    - `Code Publication State: local_only` (provisional; finalized in Step 7)
-3. Post issue comment with narrative + rendered `templates/event-run-started.yml.tmpl`:
-
-   ```
-   🚀 run started — issue-{N} — attempt {n} / {max}
-   Target: {task_key}
-   Plan: {one-line plan}
-
-   {render templates/event-run-started.yml.tmpl}
-   ```
+3. **Record `run_started` locally (silent)** — render `templates/event-run-started.yml.tmpl` and write to `.mino/events/issue-{N}/{next_seq:04d}-run-started.yml`. Do NOT post a GitHub comment.
 
 ### Step 6: Execute
 
@@ -129,12 +121,14 @@ Per protocol § Phase 4 and contract § run, commit failure must not consume ret
      - `Next Stage: verify`
      - `Workflow Entry State: ready_to_start`
      - `Code Publication State: local_only`
-3. Post issue comment with narrative + rendered `templates/event-run-commit-failed.yml.tmpl`:
+3. Render `templates/event-run-commit-failed.yml.tmpl`, write to `.mino/events/issue-{N}/{next_seq:04d}-run-commit-failed.yml`. Then post an issue comment with narrative + the same yml content (this event is **audible**). Comment body:
 
    ```
    ⚠️ run commit failed — issue-{N}
-   Reason: {short error message}
+
    Action: resolve the commit issue (hook, identity, signing, …) and re-run `/run issue-{N}` (no retry budget consumed).
+
+   Local events: `.mino/events/issue-{N}/`
 
    {render templates/event-run-commit-failed.yml.tmpl}
    ```
@@ -151,16 +145,7 @@ Only reachable from 7.A or 7.B success.
      - `Next Stage: verify`
      - `Workflow Entry State: ready_to_start`
      - `Code Publication State: local_only` (or `not_applicable` from 7.A)
-2. Post issue comment with narrative + rendered `templates/event-run-completed.yml.tmpl`:
-
-   ```
-   ✅ run completed — issue-{N} — attempt {n} / {max}
-   Commit: {sha or no changes}
-   Files: {n} changed
-   Next: /verify issue-{N}
-
-   {render templates/event-run-completed.yml.tmpl}
-   ```
+2. **Record `run_completed` locally (silent)** — render `templates/event-run-completed.yml.tmpl` and write to `.mino/events/issue-{N}/{next_seq:04d}-run-completed.yml`. Do NOT post a GitHub comment.
 
 After the local state is updated and before releasing the lock, sync the GitHub stage label so humans see progress:
 
@@ -219,6 +204,8 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Always release `.mino/run.lock` on exit, including failure paths.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 - Do NOT treat `gh issue edit` label-sync failures as fatal; the local event yml is authoritative.
+- Do NOT post a GitHub comment for `run_started` or `run_completed` — both are silent in v1.10.
+- Do post an audible comment for `run_commit_failed`, including the `Local events: ...` pointer line above the yml block.
 
 ## References
 
