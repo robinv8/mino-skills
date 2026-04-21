@@ -67,7 +67,17 @@ Walk each item in the brief's `Acceptance Criteria` section:
 
 ### Step 6: Render Verdict
 
-Choose exactly one of A–E. Each writes the brief, posts an issue comment with narrative + the rendered event template, and never stages or commits `.mino/briefs/`.
+Choose exactly one of A–E. Each writes the brief **and** writes a local event file under `.mino/events/issue-{N}/{next_seq:04d}-{event-kebab}.yml`. Whether a GitHub comment is posted depends on the event's category:
+
+- 6.A `verify_passed` → **silent**, no comment.
+- 6.B `verify_failed_retryable` → **audible**, post comment.
+- 6.C `verify_failed_terminal` → **audible**, post comment.
+- 6.D `verify_pending_acceptance` → **audible**, post comment.
+- 6.E `verify_publication_failed` → **audible**, post comment.
+
+Every audible comment body must include the line `Local events: \`.mino/events/issue-{N}/\`` directly above the yml block, so reviewers know where the full log lives.
+
+No path stages or commits `.mino/briefs/`.
 
 Brief updates use surgical section replacement; preserve `Open Questions / Warnings` and any other human-authored content.
 
@@ -114,6 +124,8 @@ gh issue edit {N} --remove-label "stage:verify" --add-label "stage:done"
 
 Label sync failure is a warning, not an error: log `stage_label_sync_failed: <reason>` in the verify report and proceed. The local yml remains authoritative.
 
+Do NOT post a GitHub comment for `verify_passed` — it is silent in v1.10. The local event file is the sole record at this stage.
+
 #### 6.B Checks failed AND attempt budget remains
 
 A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default `Max Retry Count: 3`, attempts 1/2/3 may yield `fail_retryable`; attempt 4 must be terminal.
@@ -137,6 +149,8 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
    ... (truncated, full output in Failure Context)
    {last 20 lines of error output}
 
+   Local events: `.mino/events/issue-{N}/`
+
    {render templates/event-verify-failed-retryable.yml.tmpl}
    ```
 
@@ -157,6 +171,8 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
    Reason: {budget exhausted | unrecoverable error class}
    Failed check: {command}
    {truncated output}
+
+   Local events: `.mino/events/issue-{N}/`
 
    {render templates/event-verify-failed-terminal.yml.tmpl}
    ```
@@ -185,6 +201,8 @@ Triggers:
    Reason: {one line}
    Action: Run `/checkup accept issue-{N}` after completing the checklist (stored in the local brief).
 
+   Local events: `.mino/events/issue-{N}/`
+
    {render templates/event-verify-pending-acceptance.yml.tmpl}
    ```
 
@@ -210,6 +228,8 @@ This is reachable only from 6.A when `git push` (or any equivalent publication s
    Checks passed at SHA {anchor}, but publication failed.
    Error: {short message}
    Action: resolve push/auth issue, then re-run `/verify issue-{N}` (no retry budget consumed).
+
+   Local events: `.mino/events/issue-{N}/`
 
    {render templates/event-verify-publication-failed.yml.tmpl}
    ```
@@ -242,6 +262,8 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Keep narrative summaries compact; the structured event is the machine source of truth.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 - Do NOT treat `gh issue edit` label-sync failures as fatal; the local event yml is authoritative.
+- Do NOT post a GitHub comment for `verify_passed` — silent in v1.10.
+- Do post audible comments for all other verify outcomes, prefixed with the `Local events: ...` pointer.
 
 ## References
 
