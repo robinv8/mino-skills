@@ -1,5 +1,3 @@
-**English** | [简体中文](TEST_PLAN.zh.md)
-
 # Iron Tree Protocol — End-to-End Validation Plan
 
 > Using a **business-mature and technically typical** real-world scenario — "login/register + user management" — to end-to-end validate whether the Mino skill pack can take a Markdown spec all the way to working, log-in-able, user-manageable product code.
