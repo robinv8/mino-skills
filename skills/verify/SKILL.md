@@ -9,140 +9,232 @@ description: |
 
 # Verification Gatekeeper
 
-Validate executed work against explicit acceptance criteria and repository-native checks, then produce a clear pass/fail verdict.
+Validate executed work against explicit acceptance criteria and repository-native checks, then produce a deterministic pass/fail verdict bound to a specific commit (`Verify Anchor SHA`).
+
+This skill consumes `run`'s output and feeds `checkup`. All structured artifacts (events, brief sections) are rendered from templates in `templates/` so downstream skills can rely on schema stability.
 
 ## Workflow
 
-1. **Confirm scope** — identify the task being verified and load its brief.
-2. **Select verification command** — prefer an explicit override first, then auto-detect repository-native tooling:
-   | Signature | Command |
-   |-----------|---------|
-   | `.mino/config.yml` | read `verify.command` override |
-   | `project.yml` (XcodeGen) | `xcodebuild -scheme <name>` |
-   | `Package.swift` | `swift test` / `swift build` |
-   | `Mino.xcodeproj` / `*.xcodeproj` | `xcodebuild -scheme <name>` |
-   | `package.json` | `npm test` / `npm run build` / `npm run lint` |
-   | `Cargo.toml` | `cargo test` / `cargo build` / `cargo clippy` |
-   | `pyproject.toml` / `setup.py` | `pytest` / `python -m pytest` |
+### Step 1: Confirm Scope
+
+- Identify the task being verified (issue number or task key from the user)
+- Load `.mino/briefs/issue-{N}.md` and the latest valid event sequence from the issue
+- Verify `Approved Revision == Spec Revision`; if not, halt and direct user to `/task` for re-approval
+
+### Step 2: Anchor The Verification
+
+Record `Verify Anchor SHA = git rev-parse HEAD` **before** running any check.
+
+This SHA is bound into every event and the verification summary. It guarantees the verdict refers to a specific committed state, not the current working tree.
+
+If `git status --porcelain` shows uncommitted changes at this point, halt and direct user back to `/run` — `verify` evaluates committed code only. (`run` is responsible for committing before handoff.)
+
+### Step 3: Select Verification Commands
+
+Resolve commands in this order; the first hit wins:
+
+1. **`.mino/config.yml` override** — read `verify.commands` (a list); if present, use exactly this list and skip auto-detection. The list may include any shell-runnable command.
+2. **Brief override** — if the brief's `Verification` section contains an explicit shell command list (lines starting with `$ `), use that.
+3. **Auto-detect repo-native tooling** by file signature:
+
+   | Signature | Default commands |
+   |-----------|------------------|
+   | `package.json` (with `pnpm-lock.yaml`) | `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm test`, `pnpm lint` |
+   | `package.json` (with `yarn.lock`) | `yarn install --frozen-lockfile`, `yarn build`, `yarn test`, `yarn lint` |
+   | `package.json` (otherwise) | `npm ci`, `npm run build`, `npm test`, `npm run lint` |
+   | `pyproject.toml` / `setup.py` | `pytest` |
+   | `Cargo.toml` | `cargo build`, `cargo test`, `cargo clippy -- -D warnings` |
+   | `Package.swift` | `swift build`, `swift test` |
+   | `Mino.xcodeproj` / `*.xcodeproj` | `xcodebuild -scheme <name> test` |
    | `Makefile` | `make test` |
-   - If multiple signatures exist, use the one matching the project's primary language unless `.mino/config.yml` overrides it.
-   - If none exist, proceed to the manual-acceptance verdict.
-3. **Run checks** — execute the detected verification commands:
-   - Build: `xcodebuild`, `npm run build`, `cargo build`, etc.
-   - Test: `xcodebuild test`, `npm test`, `cargo test`, etc.
-   - Lint: `swiftlint`, `eslint`, `clippy`, etc.
-4. **Compare to acceptance criteria** — check each criterion from the brief against observed results.
-5. **Render verdict** — after rendering each verdict:
-   - Update local brief state
-   - Do NOT stage the brief file
-   - Post a short issue summary plus a structured workflow event
 
-   **If all checks pass**:
-   > ✅ **verify passed** — issue-8
-   > Build: success
-   > Tests: 42 passed
-   > Summary: {concise}
+   Skip commands whose script is not present (e.g., `pnpm lint` if `package.json` has no `lint` script). Do not invent a missing build/test target.
 
-   Then:
-   - Publish code first if relevant:
-     - If code files changed:
-       - Stage all changes **except** workflow-local files:
-         ```bash
-         git add -A -- ':!.mino/briefs/' ':!.mino/locks/'
-         ```
-       - Commit with `[run] issue-{N}: {concise change summary}`
-       - `git push`
-       - Capture the resulting `HEAD` SHA as `Code Ref`
-     - If no code files changed, use `Code Publication State: not_applicable` and `Code Ref: not_applicable`
-     - If commit or push fails, do NOT record success. Keep `Current Stage: verify`, `Next Stage: verify`, `Workflow Entry State: ready_to_start`, `Code Publication State: local_only`, leave `Pass/Fail Outcome` unset, persist the publication error in `Failure Context`, post a structured `verify_publication_failed` event, and do not change `Attempt Count`
-   - Only after publication succeeds, update brief: `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Code Publication State: published|not_applicable`, `Pass/Fail Outcome: pass`
-   - Record `Completion Basis: verified` and `Code Ref`
-   - Post a structured `verify_passed` event
-   **If automated checks pass but human review is still required**:
-   > ⏸️ **manual acceptance required** — issue-8
-   > Steps:
-   > 1. Launch the app
-   > 2. Navigate to ...
-   > 3. Verify ...
-   > 4. Record acceptance with `/checkup accept issue-8`
+4. **Nothing detected** → route to `pending_acceptance` (Step 6.D).
 
-   Then:
-   - Write the detailed checklist to the brief `Manual Acceptance` section:
-     - `Reason: verify passed, awaiting manual check`
-     - `Checklist: ...`
-     - `Action: Run /checkup accept issue-{N}`
-   - Update brief: `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`
-   - Leave `Pass/Fail Outcome` unset
-   - Add the issue label `pending-acceptance` if available
-   - Post a short issue summary comment:
-     - Reason
-     - Action to run `/checkup accept issue-{N}`
-     - Note that the detailed checklist is stored in the local brief
-   - Post a structured `verify_pending_acceptance` event
+### Step 4: Run Checks
 
-   **If no verification command is detected**:
-   > 🟡 **manual acceptance required** — issue-8
-   > Reason: no build/test/lint tooling found in repository
-   > Action: add a `.mino/config.yml` with `verify.command`, or review manually and then run `/checkup accept issue-8`
+Execute the selected commands sequentially. Capture stdout + stderr per command. Stop on the first failure.
 
-   Then:
-   - Write the detailed checklist to the brief `Manual Acceptance` section:
-     - `Reason: no tooling detected`
-     - `Checklist: ...`
-     - `Action: Run /checkup accept issue-{N}`
-   - Update brief: `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`
-   - Leave `Pass/Fail Outcome` unset
-   - Add the issue label `pending-acceptance` if available
-   - Post a short issue summary comment:
-     - Reason
-     - Action to run `/checkup accept issue-{N}`
-     - Note that the detailed checklist is stored in the local brief
-   - Post a structured `verify_pending_acceptance` event
+When tooling integration with PRs is available and a PR is known, also surface `gh pr checks` output in the failure context if it is more authoritative than the local result.
 
-   **If checks fail and retryable**:
-   > ❌ **verify failed (retryable)** — issue-8
-   > Failure Context:
-   > ```
-   > {first 50 lines of error output}
-   > ... (truncated, see full output above)
-   > {last 20 lines of error output}
-   > ```
+### Step 5: Compare To Acceptance Criteria
 
-   Then:
-   - A failure on attempt `N` is retryable only if `N <= Max Retry Count`; with the default `Max Retry Count: 3`, failures on attempts `1`, `2`, and `3` remain retryable, and a failure on attempt `4` is terminal
-   - Update brief: `Current Stage: run`, `Next Stage: verify`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: fail_retryable`
-   - Persist `Failure Context`
-   - Post a structured `verify_failed_retryable` event
+Walk each item in the brief's `Acceptance Criteria` section:
 
-   **If checks fail and terminal**:
-   > 🚫 **verify failed (terminal)** — issue-8
-   > Failure Context:
-   > ```
-   > {truncated exact output}
-   > ```
-   > Reason: {why it's unrecoverable or why attempt budget is exhausted}
+- If the criterion is satisfied by an automated check, mark it as covered
+- If a criterion has no automated coverage, route the verdict to `pending_acceptance` (Step 6.D), even if all automated checks pass
 
-   Then:
-   - Update brief: `Current Stage: verify`, `Next Stage: none`, `Workflow Entry State: blocked`, `Pass/Fail Outcome: fail_terminal`
-   - Persist `Failure Context`
-   - Post a structured `verify_failed_terminal` event
+### Step 6: Render Verdict
 
-6. **CI / PR integration (optional)** — if the repository uses GitHub Actions or PR checks and a relevant PR is known:
-   - Run `gh pr checks` to surface CI status
-   - Include CI failures in `Failure Context` if they are more authoritative than local checks
+Choose exactly one of A–E. Each writes the brief, posts an issue comment with narrative + the rendered event template, and never stages or commits `.mino/briefs/`.
+
+Brief updates use surgical section replacement; preserve `Open Questions / Warnings` and any other human-authored content.
+
+#### 6.A All automated checks passed AND all acceptance criteria covered
+
+1. **Publish code first** if relevant:
+   - If code files changed during `run`:
+     - The commit was already created by `run`. `verify` only needs to push.
+     - Run `git push`. If push fails, go to 6.E (publication failed) instead.
+     - Capture `Code Ref = git rev-parse HEAD` after push.
+     - Set `Code Publication State: published`.
+   - If no code files changed:
+     - Set `Code Ref: not_applicable`, `Code Publication State: not_applicable`.
+
+2. **Update brief sections** (surgical replace):
+   - `Verification Summary` ← render `templates/brief-section-verification-summary.md.tmpl`
+   - `Workflow State`:
+     - `Current Stage: checkup`
+     - `Next Stage: done`
+     - `Workflow Entry State: ready_to_start`
+     - `Code Publication State: published | not_applicable`
+   - `Pass/Fail Outcome` ← `pass`
+   - `Completion Handoff`:
+     - `Completion Basis: verified`
+     - `Code Ref: {sha or not_applicable}`
+
+3. **Post comment to issue** — narrative + rendered `templates/event-verify-passed.yml.tmpl`:
+
+   ```
+   ✅ verify passed — issue-{N}
+   - Build: success
+   - Tests: {n} passed
+   - Lint: clean
+   - Code Ref: {sha or not_applicable}
+
+   {render templates/event-verify-passed.yml.tmpl}
+   ```
+
+#### 6.B Checks failed AND attempt budget remains
+
+A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default `Max Retry Count: 3`, attempts 1/2/3 may yield `fail_retryable`; attempt 4 must be terminal.
+
+1. **Update brief sections**:
+   - `Failure Context` ← render `templates/brief-section-failure-context.md.tmpl` with `pass_fail_outcome: fail_retryable`
+   - `Workflow State`:
+     - `Current Stage: run`
+     - `Next Stage: verify`
+     - `Workflow Entry State: ready_to_start`
+   - `Pass/Fail Outcome` ← `fail_retryable`
+
+2. **Do NOT change `Attempt Count`.** Only `run` increments it.
+
+3. **Post comment** — narrative + rendered `templates/event-verify-failed-retryable.yml.tmpl`:
+
+   ```
+   ❌ verify failed (retryable) — issue-{N} — attempt {n} / {max}
+   Failed check: {command}
+   {first 50 lines of error output}
+   ... (truncated, full output in Failure Context)
+   {last 20 lines of error output}
+
+   {render templates/event-verify-failed-retryable.yml.tmpl}
+   ```
+
+#### 6.C Checks failed AND attempt budget exhausted (or unrecoverable)
+
+1. **Update brief sections**:
+   - `Failure Context` ← render `templates/brief-section-failure-context.md.tmpl` with `pass_fail_outcome: fail_terminal`
+   - `Workflow State`:
+     - `Current Stage: verify`
+     - `Next Stage: none`
+     - `Workflow Entry State: blocked`
+   - `Pass/Fail Outcome` ← `fail_terminal`
+
+2. **Post comment** — narrative + rendered `templates/event-verify-failed-terminal.yml.tmpl`:
+
+   ```
+   🚫 verify failed (terminal) — issue-{N}
+   Reason: {budget exhausted | unrecoverable error class}
+   Failed check: {command}
+   {truncated output}
+
+   {render templates/event-verify-failed-terminal.yml.tmpl}
+   ```
+
+#### 6.D Manual acceptance required
+
+Triggers:
+- All automated checks passed but at least one acceptance criterion has no automated coverage
+- No verification tooling could be detected
+- An acceptance criterion explicitly requires human review (UI screenshot, perceptual quality, etc.)
+
+1. **Update brief sections**:
+   - `Manual Acceptance` ← render `templates/brief-section-manual-acceptance.md.tmpl` (write the actionable checklist here)
+   - `Workflow State`:
+     - `Current Stage: verify`
+     - `Next Stage: checkup`
+     - `Workflow Entry State: pending_acceptance`
+   - Leave `Pass/Fail Outcome` unset; do not write `Completion Handoff` yet.
+
+2. **Tag the issue** with the `pending-acceptance` label. Skip gracefully if the label is missing on this repo.
+
+3. **Post comment** — short summary + action + rendered `templates/event-verify-pending-acceptance.yml.tmpl`:
+
+   ```
+   ⏸️ manual acceptance required — issue-{N}
+   Reason: {one line}
+   Action: Run `/checkup accept issue-{N}` after completing the checklist (stored in the local brief).
+
+   {render templates/event-verify-pending-acceptance.yml.tmpl}
+   ```
+
+#### 6.E Publication failed (push or commit refused after checks passed)
+
+This is reachable only from 6.A when `git push` (or any equivalent publication step) fails after automated checks have already passed.
+
+1. **Do NOT record success.** Leave `Pass/Fail Outcome` and `Completion Handoff` unset.
+2. **Update brief sections**:
+   - `Failure Context` ← render `templates/brief-section-failure-context.md.tmpl` with the publication error and `pass_fail_outcome: null`
+   - `Workflow State`:
+     - `Current Stage: verify`
+     - `Next Stage: verify`
+     - `Workflow Entry State: ready_to_start`
+     - `Code Publication State: local_only`
+
+3. **Do NOT change `Attempt Count`.** Publication failure must not consume retry budget.
+
+4. **Post comment** — narrative + rendered `templates/event-verify-publication-failed.yml.tmpl`:
+
+   ```
+   ⚠️ verify publication failed — issue-{N}
+   Checks passed at SHA {anchor}, but publication failed.
+   Error: {short message}
+   Action: resolve push/auth issue, then re-run `/verify issue-{N}` (no retry budget consumed).
+
+   {render templates/event-verify-publication-failed.yml.tmpl}
+   ```
+
+## Templates
+
+All artifact shapes are externalized; `verify` MUST NOT generate freehand variations.
+
+- `templates/event-verify-passed.yml.tmpl`
+- `templates/event-verify-failed-retryable.yml.tmpl`
+- `templates/event-verify-failed-terminal.yml.tmpl`
+- `templates/event-verify-publication-failed.yml.tmpl`
+- `templates/event-verify-pending-acceptance.yml.tmpl`
+- `templates/brief-section-verification-summary.md.tmpl`
+- `templates/brief-section-failure-context.md.tmpl`
+- `templates/brief-section-manual-acceptance.md.tmpl`
+
+Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce conditional logic in templates.
 
 ## Constraints
 
-- Do NOT skip `Failure Context` on errors — capture exact output, truncated if necessary.
-- Do NOT suggest manual acceptance without clear, actionable steps.
-- Do NOT auto-pass a task when no verification tooling is found.
-- Do NOT record `verify_passed` before code publication has succeeded.
+- Do NOT skip recording `Verify Anchor SHA` — it is required by the protocol (v1.4 § Verify Anchor) and required in every event.
+- Do NOT modify `Attempt Count`. Only `run` increments it.
+- Do NOT auto-pass a task when no verification tooling is found — route to 6.D instead.
+- Do NOT record `verify_passed` before code publication has succeeded; on push failure go to 6.E.
 - Do NOT fix the failure here — hand `Failure Context` back to `run` for self-correction.
-- Do NOT stage or commit `.mino/briefs/` or `.mino/locks/` during code publication — briefs are local workflow cache and must not enter the git history.
-- Keep success summaries compact. No prose for green checks.
-- Use `Attempt Count` and `Max Retry Count` exactly as defined in the workflow contract.
+- Do NOT stage or commit `.mino/briefs/` or `.mino/locks/` — these are local workflow cache.
+- Do NOT invent fields in the YAML events; the schema is fixed by `workflow-state-contract.md`.
+- Do NOT overwrite `Open Questions / Warnings` in the brief; replace target sections only.
+- Keep narrative summaries compact; the structured event is the machine source of truth.
 
 ## References
 
 - [../references/workflow-state-contract.md](../references/workflow-state-contract.md)
 - [../references/iron-tree-protocol.md](../references/iron-tree-protocol.md)
+- [../references/brief-contract.md](../references/brief-contract.md)

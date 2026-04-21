@@ -1,0 +1,21 @@
+```yaml
+iron_tree:
+  version: 1
+  task_key: {{ task_key }}
+  issue_number: {{ issue_number }}
+  spec_revision: {{ spec_revision }}
+  approved_revision: {{ approved_revision }}
+  sequence: {{ sequence }}
+  event: verify_passed
+  current_stage: checkup
+  next_stage: done
+  workflow_entry_state: ready_to_start
+  approval_state: approved
+  attempt_count: {{ attempt_count }}
+  max_retry_count: {{ max_retry_count }}
+  code_publication_state: {{ code_publication_state }}
+  pass_fail_outcome: pass
+  completion_basis: verified
+  code_ref: {{ code_ref }}
+  verify_anchor_sha: {{ verify_anchor_sha }}
+```
