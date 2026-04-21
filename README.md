@@ -1,5 +1,8 @@
 # Mino Skills
 
+[![Version](https://img.shields.io/badge/release-v0.1.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.1.0)
+[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.7-blue)](skills/references/iron-tree-protocol.md)
+[![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
 
 [Agent Skills](https://agentskills.io) compatible skill pack for task-driven development.
@@ -14,7 +17,19 @@ A set of four engineering skills that implement the **Iron Tree Protocol**: an o
 Markdown spec → /task → DAG approval → /run → /verify → /checkup → done
 ```
 
-No GUI. No runtime. No deposition events. Just prompts that agents follow.
+No GUI. No runtime. No deposition events. Just prompts that agents follow — every artifact (issue body, brief section, YAML event) is rendered from a fixed template under `skills/<skill>/templates/`, so different agents produce byte-identical output.
+
+## Validated scenarios
+
+`v0.1.0` ships with the following end-to-end coverage on `https://github.com/robinv8/mino-skills`:
+
+| Phase | Scope | Result |
+|-------|-------|--------|
+| **Phase 1 — Happy path** | spec → DAG → run → verify → checkup → done (TC-1.1 / 1.2 / 1.2b) | 14 / 14 ✅ |
+| **Phase 2 — Imperfect reality** | retry, dirty tree, publication failure, manual acceptance, composite aggregate, brief rebuild, sequence-gap reconcile (TC-2.1 ~ 6.2) | 14 / 14 ✅ |
+| **Phase 3 — Protocol decisions** | external close, parallel run, mid-verify code drift (TC-7.1 / 7.2 / 7.3) | resolved & written back to protocol |
+
+Full regression evidence: [reports/phase2-regression-report.md](reports/phase2-regression-report.md).
 
 ## Skills
 
@@ -30,14 +45,24 @@ No GUI. No runtime. No deposition events. Just prompts that agents follow.
 ```
 mino-skills/
 ├── skills/
-│   ├── task/SKILL.md                    # Markdown → DAG → issues + briefs
-│   ├── run/SKILL.md                     # Serial execution with self-correction
-│   ├── verify/SKILL.md                  # Build/test/lint validation
-│   ├── checkup/SKILL.md                 # Health check + reconciliation
+│   ├── task/
+│   │   ├── SKILL.md                     # Markdown → DAG → issues + briefs
+│   │   └── templates/                   # brief / issue body / task_published event
+│   ├── run/
+│   │   ├── SKILL.md                     # Serial execution + commit + run.lock
+│   │   └── templates/                   # 3 events + execution-summary section + lock
+│   ├── verify/
+│   │   ├── SKILL.md                     # Build/test/lint with Verify Anchor SHA
+│   │   └── templates/                   # 5 outcome events + 3 brief sections
+│   ├── checkup/
+│   │   ├── SKILL.md                     # 7 modes incl. pre-flight & finalize
+│   │   └── templates/                   # 7 events + 4 brief sections
 │   └── references/
-│       ├── iron-tree-protocol.md        # Execution loop specification
-│       ├── workflow-state-contract.md   # Stage vocabulary
-│       └── brief-contract.md            # Brief format
+│       ├── iron-tree-protocol.md        # Execution loop specification (v1.7)
+│       ├── workflow-state-contract.md   # Stage vocabulary + event whitelist
+│       └── brief-contract.md            # Brief format (17 sections)
+├── reports/
+│   └── phase2-regression-report.md      # E2E validation evidence
 ├── README.md
 └── LICENSE
 ```
@@ -203,12 +228,15 @@ Runs build, tests, linters. Results:
 ```
 
 - **Self-correction**: `verify` failures feed `Failure Context` back to `run` for a different approach
-- **Serial execution**: DAG nodes run one at a time (v1), respecting `depends_on`
+- **Serial execution**: DAG nodes run one at a time (v1), respecting `depends_on`. Enforced by `.mino/run.lock` (file lock, V3 will revisit parallel runs).
 - **Approval gates**: Human must approve the DAG before any execution begins
 - **Manual acceptance**: if automation cannot prove correctness, `verify` stops at `pending_acceptance` and `checkup accept` records the human decision
 - **Shared visibility**: detailed manual checklists stay in local briefs, while issue labels/comments make acceptance status visible to collaborators
 - **Revision-aware approval**: published work stays executable only while `Spec Revision` matches `Approved Revision`
 - **Canonical identity**: `Task Key` is the protocol identity; `issue-8` is a user-facing locator after publish
+- **Verify Anchor SHA**: every verify result binds to the `HEAD` SHA at start, immune to mid-flight code drift
+- **External-event awareness**: if an issue is closed outside the workflow, `checkup reconcile` records an `External Event` section instead of silently syncing to `done`
+- **Template-driven artifacts**: all events, briefs, and issue bodies are rendered from `templates/*.tmpl` files — agent-agnostic and diff-stable
 
 ## References
 
