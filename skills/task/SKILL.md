@@ -4,7 +4,8 @@ description: |
   Convert a local Markdown requirement document into an execution DAG.
   Read a spec or bug note, extract tasks with dependencies, classify them,
   and prepare GitHub issues + local briefs. Always asks for approval
-  before creating anything. Use when starting new work from a Markdown doc.
+  before creating anything. Use when starting new work from a Markdown doc,
+  or use `/task adopt issue-N` to standardize an existing GitHub issue.
 ---
 
 # Task Intake Engine
@@ -12,6 +13,130 @@ description: |
 Read a user-specified local Markdown requirement document, extract a Directed Acyclic Graph (DAG) of work items, classify each, and prepare them for execution — but only after explicit user approval.
 
 This skill is the protocol's entry point. Its outputs (issue body, local brief, structured event) are consumed by `run`, `verify`, and `checkup`. Field names, section names, and event schemas are **fixed by template files** in `templates/` so downstream skills can rely on them deterministically.
+
+## Adopt Mode
+
+When the user invokes `/task adopt issue-N` (instead of `/task <path-to-spec.md>`), branch into Adopt Mode. This mode produces artifacts shape-compatible with native publication, then rejoins the standard flow at the approval gate.
+
+### Adopt-Step 1: Pre-flight
+
+1. Verify `gh auth status` succeeds; on failure halt with: `gh CLI not authenticated; run \`gh auth login\` then retry.`
+2. Ensure the six standard labels exist on the host repo. For each label in the table below, run `gh label list --search "<name>" --json name -q '.[].name'`; if absent, run `gh label create "<name>" --color "<color>" --description "<desc>" --force` (idempotent).
+
+   | Name | Color | Description |
+   |---|---|---|
+   | `iron-tree:adopted` | `0E8A16` | Issue is under Iron Tree workflow |
+   | `iron-tree:needs-breakdown` | `D93F0B` | Composite issue — must be split into child issues before adoption |
+   | `stage:task` | `FBCA04` | In task stage (awaiting approval) |
+   | `stage:run` | `1D76DB` | Approved, awaiting or executing run |
+   | `stage:verify` | `5319E7` | Run committed, awaiting or executing verify |
+   | `stage:done` | `0E8A16` | Verify passed |
+
+### Adopt-Step 2: Fetch & validate
+
+```
+gh issue view {N} --json number,state,title,body,labels,url
+```
+
+Refuse with explicit error message if any of these hold:
+
+- `state != "OPEN"` → `Issue #{N} is {state}; only OPEN issues can be adopted.`
+- body contains `≥ COMPOSITE_THRESHOLD (=3)` lines matching regex `^\s*-\s*\[\s\]` → composite. Run `gh issue edit {N} --add-label "iron-tree:needs-breakdown"` and halt with: `Issue #{N} appears composite ({k} open checkboxes). Split it into child issues, then run \`/task adopt\` on each child.`
+
+### Adopt-Step 3: Detect re-adopt
+
+If the fetched labels include `iron-tree:adopted`:
+
+1. Read existing `.mino/briefs/issue-{N}.md`, extract the `Approved Revision: <hex>` value → `previous_revision`
+2. `archive_path = .mino/archive/issue-{N}-rev-{previous_revision}/`
+3. `mkdir -p {archive_path}` then `mv .mino/briefs/issue-{N}.md {archive_path}/brief.md` and `mv .mino/events/issue-{N} {archive_path}/events`
+4. Mark `mode = re_adopted`
+
+Otherwise `mode = adopted`.
+
+### Adopt-Step 4: Compute identity
+
+```
+task_key      = slugify(issue_title)            # same slugify rules as Step 3 of native flow
+spec_path     = "github://issue-{N}"
+spec_revision = sha256( normalize(issue_title) + "\n---\n" + normalize(issue_body) )[:8]
+adopted_at    = ISO 8601 timestamp, e.g. 2026-04-21T10:54:00Z
+```
+
+### Adopt-Step 5: Approval Gate
+
+Show the user:
+
+```
+Adopting issue #{N}: {title}
+  task_key:      {task_key}
+  spec_revision: {spec_revision}
+  mode:          {adopted | re_adopted}
+  {if re_adopted}: archived previous chain to {archive_path}
+
+Approve adoption? (yes / cancel)
+```
+
+Halt until explicit `yes`. `cancel` rolls back archival (re-`mv` files back) when `mode = re_adopted`.
+
+### Adopt-Step 6: Render brief
+
+Render `templates/brief.md.tmpl` with these substitutions for an adopted issue:
+
+- `title` ← issue title
+- `task_key` ← from Step 4
+- `issue_number` ← `{N}`
+- `github_url` ← issue url
+- `parent_issue_url_or_none` ← `none`
+- `type` ← `bug` if any of the issue's existing labels match `/^(bug|defect|fix)$/i`, else `feature`
+- `shape` ← `atomic` (composite was refused in Step 2)
+- `executability` ← `executable`
+- `depends_on_task_keys_or_none` ← `none`
+- `acceptance_criteria_checklist` ← verbatim copy of the issue body, prefixed with `> Source: GitHub issue #{N}`. The human-authored body is the acceptance contract until the user edits the brief.
+- `verification_steps` ← `_(adopted issue — verify will infer from project conventions or route to pending_acceptance)_`
+- `target_files_list` ← `_(unknown at adoption — populated by run)_`
+- `work_breakdown_or_not_applicable` ← `not_applicable`
+- `next_stage` ← `run`
+- `workflow_entry_state` ← `ready_to_start`
+- `spec_revision` ← from Step 4
+
+Write to `.mino/briefs/issue-{N}.md`.
+
+### Adopt-Step 7: Render & post event
+
+If `mode = adopted`, render `templates/event-task-adopted.yml.tmpl`. If `mode = re_adopted`, render `templates/event-task-re-adopted.yml.tmpl`. In either case substitute:
+
+- `task_key`, `issue_number`, `spec_revision`, `issue_url`, `original_title`, `adopted_at_iso`
+- (re_adopted only) `previous_revision`, `archive_path`
+
+Write the rendered file to `.mino/events/issue-{N}/0001-task-{adopted|re-adopted}.yml`.
+
+Then post the same content as a GitHub comment:
+
+```
+gh issue comment {N} --body-file .mino/events/issue-{N}/0001-task-{adopted|re-adopted}.yml
+```
+
+If the comment post fails: do NOT roll back the brief or local event; record `event_publish_failed` in the report (same policy as native Step 5/6).
+
+### Adopt-Step 8: Apply labels
+
+```
+gh issue edit {N} --add-label "iron-tree:adopted" --add-label "stage:task"
+# if mode = re_adopted, also remove any leftover stage labels:
+gh issue edit {N} --remove-label "stage:run" --remove-label "stage:verify" --remove-label "stage:done"
+```
+
+Label-edit failures are warnings, not errors — log `stage_label_sync_failed: <reason>` in the report and continue. Local yml remains authoritative.
+
+### Adopt-Step 9: Report & next-step hint
+
+```
+Adopted #{N} as {task_key} (revision {spec_revision}, mode {adopted|re_adopted}).
+Run `/run issue-{N}` to start.
+```
+
+After Adopt Mode finishes, control returns to the user. Adopt Mode does **not** fall through to native Step 1–6.
 
 ## Workflow
 
@@ -119,6 +244,10 @@ After approval, for each task in dependency order:
    - Continue publishing remaining tasks; one failure does not abort the batch.
    - In the final report, instruct the user to manually re-post via `gh issue comment {N} --body-file <rendered-event-file>`, or to run `/checkup reconcile` once available.
 
+7. **Sync stage label** — `gh issue edit {N} --add-label "stage:task"` (idempotent).
+
+   For native publishes the issue starts at `stage:task`; transition to `stage:run` happens when the user approves and `/run` is invoked. (Approval-time label flip: when `task` records the user's `yes`, before exiting Step 5, run `gh issue edit {N} --remove-label "stage:task" --add-label "stage:run"` for each newly-approved task. Failures here are warnings, not errors.)
+
 ### Step 6: Report
 
 Summarize the publish results in a single table-shaped block:
@@ -157,6 +286,10 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Do NOT invent fields in the YAML event; the schema is fixed by `workflow-state-contract.md`.
 - Do NOT roll back on event-publish failure; surface it in the report instead.
 - Keep the DAG preview concise — one line per task, show dependencies as `→`.
+- Do NOT run Adopt Mode against a CLOSED issue or a composite issue (≥3 `- [ ]` checkboxes).
+- Do NOT delete the archived directory created during re-adopt; it is the audit trail.
+- Do NOT treat label sync failures as fatal; the local yml is authoritative.
+- Do NOT skip the `gh auth status` precheck — the user's project may not have gh logged in.
 
 ## References
 
