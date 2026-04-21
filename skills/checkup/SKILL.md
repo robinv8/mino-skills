@@ -30,11 +30,14 @@ The user may specify a mode. Default is `check`.
 Steps:
 
 1. Confirm `.mino/` and `.mino/briefs/` exist; `gh` is authenticated; the brief for `<issue>` exists and is well-formed.
-2. Run task-specific dependency checks (e.g. `node_modules` present, toolchain available, secrets present).
-3. If everything is healthy, print `pre-flight ok issue-{N}` and exit 0. Do NOT post any comment or modify any file.
-4. If something is broken:
+2. **Working tree cleanliness** — the workflow commits via `git add -A -- ':!.mino/briefs/' ':!.mino/locks/' ':!.mino/run.lock'`. Any pre-existing uncommitted change outside that allow-list would be silently bundled into the run commit. Treat as blocking:
+   - Run `git status --porcelain -- ':!.mino/briefs/' ':!.mino/locks/' ':!.mino/run.lock'`.
+   - If non-empty, the environment is broken: list the offending paths and tell the user to commit, stash, or revert them before re-running `/run`.
+3. Run task-specific dependency checks (e.g. `node_modules` present, toolchain available, secrets present).
+4. If everything is healthy, print `pre-flight ok issue-{N}` and exit 0. Do NOT post any comment or modify any file.
+5. If something is broken:
    - Set `Workflow Entry State: blocked` in the brief.
-   - Render `templates/event-checkup-preflight-blocked.yml.tmpl` with the next sequence number and post it as an issue comment.
+   - Render `templates/event-checkup-preflight-blocked.yml.tmpl` with the next sequence number and post it as an issue comment. Set the `blocking_check` placeholder to a short kebab-case identifier (e.g. `dirty-working-tree`, `gh-not-authenticated`, `missing-dependency`) so downstream consumers can distinguish causes.
    - Exit non-zero so `/run` halts before acquiring the lock.
 
 ## Check / Repair
