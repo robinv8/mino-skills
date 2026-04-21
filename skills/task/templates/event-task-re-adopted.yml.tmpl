@@ -1,0 +1,27 @@
+Re-adopted from existing GitHub issue `{{ issue_url }}`. Previous revision `{{ previous_revision }}` archived to `{{ archive_path }}`.
+
+```yaml
+iron_tree:
+  version: 1
+  task_key: {{ task_key }}
+  issue_number: {{ issue_number }}
+  spec_revision: {{ spec_revision }}
+  approved_revision: {{ spec_revision }}
+  sequence: 1
+  event: task_re_adopted
+  current_stage: definition
+  next_stage: run
+  workflow_entry_state: ready_to_start
+  approval_state: pending
+  attempt_count: 0
+  max_retry_count: 3
+  code_publication_state: not_applicable
+  pass_fail_outcome: null
+  completion_basis: null
+  code_ref: null
+  adopted_from: github_issue
+  issue_url: {{ issue_url }}
+  previous_revision: {{ previous_revision }}
+  archive_path: {{ archive_path }}
+  adopted_at: {{ adopted_at_iso }}
+```
