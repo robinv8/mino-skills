@@ -148,6 +148,29 @@ cat skills/task/SKILL.md
 # 粘贴到 ChatGPT、Claude、Cursor 或任意 AI 对话中
 ```
 
+### 接管既有 Issue
+
+如果你的仓库在本协议之前已存在，并且已经有开放的 issue，可以通过以下命令将其标准化：
+
+```bash
+/task adopt issue-12
+```
+
+这会生成与原生 task 相同的 brief、events 和 label 集合。复合 issue（包含 3 个及以上开放 checkbox）会被拒绝，并打上 `iron-tree:needs-breakdown` 标签，以便你先拆分它们。已关闭的 issue 也会被拒绝。
+
+工作流位置通过 GitHub label 镜像展示：
+
+| Label | 含义 |
+|---|---|
+| `iron-tree:adopted` | 已纳入 Iron Tree 工作流（永久） |
+| `iron-tree:needs-breakdown` | 复合 issue — 拆分后再接管 |
+| `stage:task` | 等待审批 |
+| `stage:run` | 已审批，准备或正在执行 run |
+| `stage:verify` | run 已提交，等待 verify |
+| `stage:done` | verify 已通过 |
+
+Pull Request 不会被接管；它们像往常一样继续合并到 issue 上。
+
 ## 更新
 
 `mino-skills` 遵循标准 Agent Skills 约定：`main` 始终是已发布分支，`skills` CLI 按需拉取最新内容。

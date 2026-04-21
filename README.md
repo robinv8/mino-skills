@@ -148,6 +148,29 @@ cat skills/task/SKILL.md
 # Paste into ChatGPT, Claude, Cursor, or any AI chat
 ```
 
+### Adopt Existing Issues
+
+If your repo predates this protocol and already has open issues, standardize them:
+
+```bash
+/task adopt issue-12
+```
+
+This produces the same brief, events, and label set as a native task. Composite issues (3+ open checkboxes) are refused with the `iron-tree:needs-breakdown` label so you can split them first. Closed issues are refused.
+
+Workflow position is mirrored on GitHub via labels:
+
+| Label | Meaning |
+|---|---|
+| `iron-tree:adopted` | Under Iron Tree workflow (permanent) |
+| `iron-tree:needs-breakdown` | Composite — split before adopting |
+| `stage:task` | Awaiting approval |
+| `stage:run` | Approved, ready or executing run |
+| `stage:verify` | Run committed, awaiting verify |
+| `stage:done` | Verify passed |
+
+Pull Requests are not adopted; they continue to merge against issues as usual.
+
 ## Update
 
 `mino-skills` follows the standard Agent Skills convention: `main` is always the released branch, and the `skills` CLI pulls the latest content on demand.
