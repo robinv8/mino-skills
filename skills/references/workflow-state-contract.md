@@ -152,6 +152,7 @@ Allowed `event` values:
 - `task_reapproval_required`
 - `run_started`
 - `run_completed`
+- `run_commit_failed`
 - `verify_passed`
 - `verify_publication_failed`
 - `verify_failed_retryable`
@@ -224,6 +225,7 @@ The label is an index for querying pending tasks. It is not the authoritative wo
 - Execution start: `Current Stage: run`, `Next Stage: verify`
 - If code files changed, `Code Publication State` becomes `local_only`
 - Execution complete: `Current Stage: verify`
+- Commit failure after execution: keep `Current Stage: run`, `Next Stage: verify`, `Workflow Entry State: ready_to_start`, `Code Publication State: local_only`, leave `Pass/Fail Outcome` and `Completion Basis` unset, persist the commit error in `Failure Context`, emit `run_commit_failed`, and decrement `Attempt Count` back to its pre-run value (commit failures must not consume retry budget, mirroring `verify_publication_failed`)
 
 ### verify
 

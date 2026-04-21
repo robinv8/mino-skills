@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.4
+> Version: 1.5
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -56,7 +56,10 @@ V1 executes DAG nodes serially even when they have no mutual dependencies. Paral
 5. Assert an advisory lock on target files
 6. Increment `Attempt Count`
 7. Modify the codebase
-8. Handoff to `verify`
+8. Commit changes locally so `verify` has a stable SHA to anchor against
+9. Handoff to `verify`
+
+If the commit step fails (e.g., a pre-commit hook rejects, identity not configured), `run` does not consume retry budget: it persists the error in `Failure Context`, emits `run_commit_failed`, decrements `Attempt Count` back to the pre-run value, and halts. This mirrors `verify_publication_failed` for symmetry between the two skills' publication boundaries.
 
 ### Phase 5: Validation (`verify`)
 
