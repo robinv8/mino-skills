@@ -65,6 +65,10 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
 2. List source tasks: `gh issue list --state all --limit 200`.
 3. For each brief in scope:
    - Pull all issue comments and parse YAML events whose `task_key` and `approved_revision` match the brief.
+   - **Sequence gap detection**: list the `sequence` values of every parsed event. If they are not a contiguous run starting at `1`, treat the gaps as missing canonical evidence:
+     - Replay events up to the highest contiguous sequence (`max(sequences) such that 1..max are all present`); ignore events past the first gap because their state assumes evidence that no longer exists.
+     - Render `templates/event-checkup-reconcile-sequence-gap.yml.tmpl` with `found_sequences`, `missing_sequences`, and `highest_replayable_sequence`. Post as the next sequenced comment so the warning itself does not introduce a further gap.
+     - Do NOT advance the workflow past `Workflow Entry State: blocked` until the operator reviews the gap (e.g. recovers the deleted comment, or runs `/task` to re-publish a fresh `approved_revision`).
    - Replay events in ascending `sequence` order to rebuild the canonical workflow state. Surgically replace `Workflow State`, `Pass/Fail Outcome`, and `Completion Handoff` sections from the resulting state. Never overwrite `Open Questions / Warnings`.
    - **External close detection**: if the source issue is `closed` but no `checkup_done` event exists for the active approved revision:
      - Set `Workflow Entry State: blocked` in the brief.
@@ -150,7 +154,7 @@ Events posted by checkup share the same sequence space as task / run / verify ev
 
 All event YAML and brief sections come from `templates/`. Render via literal `{{ var }}` substitution; no conditionals.
 
-- Events: `event-checkup-preflight-blocked.yml.tmpl`, `event-checkup-accept-recorded.yml.tmpl`, `event-checkup-accept-publication-failed.yml.tmpl`, `event-checkup-aggregate-recorded.yml.tmpl`, `event-checkup-done.yml.tmpl`, `event-checkup-reconcile-external-close.yml.tmpl`.
+- Events: `event-checkup-preflight-blocked.yml.tmpl`, `event-checkup-accept-recorded.yml.tmpl`, `event-checkup-accept-publication-failed.yml.tmpl`, `event-checkup-aggregate-recorded.yml.tmpl`, `event-checkup-done.yml.tmpl`, `event-checkup-reconcile-external-close.yml.tmpl`, `event-checkup-reconcile-sequence-gap.yml.tmpl`.
 - Brief sections: `brief-section-acceptance-summary.md.tmpl`, `brief-section-aggregate-summary.md.tmpl`, `brief-section-external-event.md.tmpl`, `brief-section-publication-failure.md.tmpl`.
 
 Brief edits are always surgical: replace only the named section header and its body up to the next `## ` header. Never touch `Open Questions / Warnings`, `Source`, or any other section not listed above.

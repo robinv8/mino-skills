@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.6
+> Version: 1.7
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept

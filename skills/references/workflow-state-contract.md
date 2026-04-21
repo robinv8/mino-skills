@@ -165,6 +165,7 @@ Allowed `event` values:
 - `checkup_aggregate_recorded`
 - `checkup_done`
 - `checkup_reconcile_external_close_detected`
+- `checkup_reconcile_sequence_gap_detected`
 - `loop_halted` (Loop Mode handed control back to a human; see `iron-tree-protocol.md` § Execution Modes; carries a `halt_reason` field)
 - `loop_resumed` (a human re-engaged after a previous `loop_halted`; carries the prior `halt_reason` for traceability)
 
