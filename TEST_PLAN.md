@@ -1,429 +1,431 @@
-# Iron Tree Protocol — 端到端验证计划
+**English** | [简体中文](TEST_PLAN.zh.md)
 
-> 用「登录注册 + 用户管理」这个**业务成熟、技术典型**的真实场景，端到端验证 Mino 技能包能不能把一份 markdown spec 真的走到可工作、可登录、可管理用户的产品代码。
+# Iron Tree Protocol — End-to-End Validation Plan
+
+> Using a **business-mature and technically typical** real-world scenario — "login/register + user management" — to end-to-end validate whether the Mino skill pack can take a Markdown spec all the way to working, log-in-able, user-manageable product code.
 
 ---
 
-## 验证目标
+## Validation Goals
 
 | | |
 |---|---|
-| **主目标** | 证明 Mino 协议能从 spec 交付一个**真的能用的完整功能** |
-| **次目标** | 验证协议在真实开发不可避免的不完美中仍然撑得住 |
-| **附带产出** | 把当前协议未明确的边界沉淀为 v3 设计输入 |
+| **Primary** | Prove the Mino Protocol can deliver a **truly usable complete feature** from a spec |
+| **Secondary** | Validate that the protocol holds up under the unavoidable imperfections of real-world development |
+| **Side output** | Capture currently undefined protocol boundaries as v3 design input |
 
 ---
 
-## 验证哲学
+## Validation Philosophy
 
-- **Happy path 走通是底线** — 走不通则协议设计失败，没有任何边界能力可谈。
-- **边界场景是「真实的不完美」，不是「故意破坏」** — 每个边界 TC 都对应一个真实开发里会自然发生的情境，不是为了为难协议。
-- **失败的边界场景不阻塞主验证** — 它们是 v3 协议补丁的输入，不是发布的拦截器。
+- **Happy-path success is the baseline** — if it doesn't work, the protocol design has failed and no boundary capability can be discussed.
+- **Boundary scenarios are "real-world imperfections", not deliberate sabotage** — each boundary TC maps to a situation that naturally occurs in real development, not a trap set for the protocol.
+- **Failed boundary scenarios do not block primary validation** — they are inputs for v3 protocol patches, not release blockers.
 
 ---
 
-## 载体
+## Test Vehicle
 
-| 项目 | 说明 |
+| Item | Description |
 |---|---|
-| **宿主仓库** | `~/Projects/todo-list`（独立项目，非 Mino 自身，避免元任务） |
-| **基线 tag** | `v0-mino-baseline`（每轮测试从这里 reset，保证可重现） |
-| **载入 spec** | `specs/auth-system.md`（注册、登录、找回密码、用户列表、改资料、删用户） |
-| **技术栈** | TypeScript / Node / pnpm（具体框架按 todo-list 现状） |
-| **预期产物** | 父 issue × 1，子 issue × 5，brief × 6，PR/commit 实际可运行 |
+| **Host repo** | `~/Projects/todo-list` (standalone project, not Mino itself, to avoid meta-tasks) |
+| **Baseline tag** | `v0-mino-baseline` (reset to this each round for reproducibility) |
+| **Loaded spec** | `specs/auth-system.md` (register, login, password recovery, user list, edit profile, delete user) |
+| **Tech stack** | TypeScript / Node / pnpm (framework determined by todo-list state) |
+| **Expected artifacts** | Parent issue × 1, child issues × 5, briefs × 6, actual runnable PRs/commits |
 
 ---
 
-## 测试结构与优先级
+## Test Structure & Priority
 
-| Phase | 角色 | 必须通过？ | 失败的含义 |
+| Phase | Role | Must pass? | Failure meaning |
 |---|---|---|---|
-| **Phase 1 — 端到端主线** | 完整 happy path | ✅ 必须全通过 | 协议设计失败 |
-| **Phase 2 — 自然不完美** | 真实开发常遇情况 | ⚠️ 大部分应通过 | skill 实现需修补 |
-| **Phase 3 — 协议待定** | 当前协议未明确的边界 | ❌ 失败即 v3 输入 | 协议规范需补条款 |
+| **Phase 1 — End-to-end mainline** | Full happy path | ✅ Must all pass | Protocol design failure |
+| **Phase 2 — Natural imperfection** | Common real-world situations | ⚠️ Most should pass | Skill implementation needs patching |
+| **Phase 3 — Protocol TBD** | Boundaries not yet defined by current protocol | ❌ Failure = v3 input | Protocol spec needs new clauses |
 
-每个测试的记录格式：
+Each test record format:
 ```
-**场景** — 这件事在真实开发里什么时候会发生
-**操作** — 怎么触发
-**预期** — 协议规定应当如何反应
-**实际** — 跑完之后填
-**根因** — 失败时填
-**修复** — 是改 skill / 改协议 / 改 spec / 不修
+**Scenario** — when does this happen in real development?
+**Operation** — how to trigger it
+**Expected** — how the protocol says it should respond
+**Actual** — fill after running
+**Root cause** — fill on failure
+**Fix** — change skill / change protocol / change spec / won't fix
 ```
 
 ---
 
-## Phase 1 — 端到端主线（必须通过）
+## Phase 1 — End-to-End Mainline (must pass)
 
-### TC-1.1 从 spec 到第一个可登录的用户
+### TC-1.1 From spec to the first log-in-able user
 
-**场景**：用户拿着一份完整的认证系统 spec，希望从打开终端到亲手注册、登录、看到自己出现在用户列表里，**不绕过协议任何一个阶段**。
+**Scenario**: A user has a complete auth-system spec and wants to go from opening the terminal to manually registering, logging in, and seeing themselves in the user list — **without skipping any protocol stage**.
 
-**操作**：
+**Operation**:
 1. `cd ~/Projects/todo-list && git reset --hard v0-mino-baseline`
-2. 写入 `specs/auth-system.md`
+2. Write `specs/auth-system.md`
 3. `/task specs/auth-system.md`
-4. 审批生成的 DAG
-5. 依次 `/run issue-N`，每个自动 → `/verify` → `/checkup`
-6. 全部子任务 done 后 `/checkup aggregate issue-1`
+4. Approve the generated DAG
+5. Run `/run issue-N` in sequence; each auto → `/verify` → `/checkup`
+6. After all sub-tasks done, `/checkup aggregate issue-1`
 
-**预期产物（协议层面）**：
-- [ ] 创建 6 个 issue（1 父 + 5 子）
-- [ ] 每个子任务 brief 经历 `run(attempt=1) → verify → checkup → done`
-- [ ] 每个子任务 `Completion Basis: verified`
-- [ ] 父任务 `Completion Basis: aggregated`
-- [ ] 所有 issue close（`Close On Done: auto`）
-- [ ] commit 记录可追溯每个 Task Key
+**Expected artifacts (protocol level)**:
+- [ ] Create 6 issues (1 parent + 5 children)
+- [ ] Each child brief goes through `run(attempt=1) → verify → checkup → done`
+- [ ] Each child `Completion Basis: verified`
+- [ ] Parent `Completion Basis: aggregated`
+- [ ] All issues closed (`Close On Done: auto`)
+- [ ] Commit history traceable to each Task Key
 
-**预期产物（产品层面 — 这才是真验收）**：
-- [x] `pnpm install && pnpm build` 成功
-- [x] `pnpm test` 全部通过
-- [x] `pnpm dev` 可启动
-- [x] **能注册一个真实新用户**
-- [x] **能用该用户登录、登出**
-- [x] **能在用户列表页看到该用户（任务列表）**
-- [ ] **能修改该用户资料并持久化**（spec 未包含）
-- [ ] **能以管理员身份删除该用户**（spec 未包含）
+**Expected artifacts (product level — this is real acceptance)**:
+- [x] `pnpm install && pnpm build` succeeds
+- [x] `pnpm test` all pass
+- [x] `pnpm dev` starts
+- [x] **Can register a real new user**
+- [x] **Can log in / log out with that user**
+- [x] **Can see that user on the user list page (task list)**
+- [ ] **Can edit that user's profile and persist changes** (not in spec)
+- [ ] **Can delete that user as admin** (not in spec)
 
-**实际**：
-- 创建 6 个 issue（#20 父 + #21~25 子）✅
-- 5 个子任务全部完成，brief 经历 run → verify → checkup → done ✅
-- 每个子任务 Completion Basis: verified ✅
-- 父任务 Completion Basis: aggregated ✅
-- commit 记录可追溯每个 Task Key（3cae470 auth-core, b75a9cf auth-pages, b97aef9 auth-routing, f81b908 auth-isolation, 1102c89 auth-tests）✅
-- `pnpm build` 成功 ✅
-- `pnpm test` 14 测试全部通过 ✅
-- 能注册、登录、登出、添加/切换/删除任务 ✅
+**Actual**:
+- Created 6 issues (#20 parent + #21~25 children) ✅
+- All 5 child tasks completed, briefs went run → verify → checkup → done ✅
+- Each child Completion Basis: verified ✅
+- Parent Completion Basis: aggregated ✅
+- Commit history traceable to each Task Key (3cae470 auth-core, b75a9cf auth-pages, b97aef9 auth-routing, f81b908 auth-isolation, 1102c89 auth-tests) ✅
+- `pnpm build` succeeded ✅
+- `pnpm test` 14 tests all passed ✅
+- Can register, log in, log out, add/switch/delete tasks ✅
 
-**根因**：无
-**修复**：无
-
----
-
-### TC-1.2 协议产物结构正确性
-
-**场景**：跑完 TC-1.1 后，检查所有协议产物的字段是否齐全、合约是否被遵守 —— 这是给 reconcile / aggregate 等下游能力打地基。
-
-**预期**：
-- [ ] 每个 brief 包含合约规定的全部字段（参见 `references/brief-contract.md`）
-- [ ] 每个 issue body 包含 `Task Key / Spec Revision / Approved Revision / Current Stage / Workflow Entry State / Completion Basis / Code Publication State`
-- [ ] issue 评论中的结构化事件 sequence 连续（1, 2, 3, ...）
-- [ ] `Spec Revision == Approved Revision` 全程
-- [ ] 父子 issue 通过 `depends_on` 正确链接
-
-**实际**：
-- 核心工作流字段齐全：Task Key、Issue Number、Spec Revision、Approved Revision、Current Stage、Next Stage、Workflow Entry State、Attempt Count、Max Retry Count、Code Publication State、Pass/Fail Outcome、Completion Basis、Code Ref、Dependencies、Work Breakdown、Source ✅
-- `Spec Revision == Approved Revision` 全程 ✅
-- brief section 结构与 `brief-contract.md` 不完全一致：使用 `## Status` 而非 `## Issue` + `## Classification` + `## Workflow State` 的分段方式 ⚠️
-- `Approval State` 字段缺失 ❌
-- `Executability` 未显式标注（由 Type 隐式推断）⚠️
-- issue 评论中**无结构化 YAML 事件**（`iron_tree: ...` block），因为当前为手动执行，无 skill 自动发帖 ❌
-- 父子 issue 通过 brief 中 Work Breakdown 链接，但 GitHub issue 本体未设置 `depends_on` ❌
-
-**根因**：
-1. 手动执行 `/task` → `/run` → `/verify` → `/checkup`，无 skill 自动化生成标准格式 brief 和结构化 issue 评论
-2. `brief-contract.md` 定义的 section 结构与手动创建的 `## Status` 列表不兼容
-3. GitHub API 未用于设置 `depends_on` / 父子链接
-
-**修复**：
-- 这是 skill 实现缺口，不是协议设计错误。TC-1.2 的预期应在 skill 实现完成后回归验证。
-- 当前手动执行的 brief 结构已足够支持下游 `aggregate` 和人工审阅，但不够机器严格。
-- **v3 输入**：`task` skill 生成 brief 时必须严格遵循 `brief-contract.md` 的 section 结构；`run`/`verify`/`checkup` skill 必须 posting 结构化事件到 issue 评论。
+**Root cause**: None
+**Fix**: None
 
 ---
 
-### TC-1.2b v2 Task Skill 回归验证（对比 #21）
+### TC-1.2 Protocol artifact structural correctness
 
-**场景**：使用 templates/ 驱动的 v2 task skill 流程重新执行一次 task-publish → run → verify → checkup，对比 #21（auth-core，v1 手动流程）验证三个缺口是否关闭。
+**Scenario**: After TC-1.1, check whether all protocol artifact fields are present and contracts honored — this lays the foundation for downstream capabilities like `reconcile` / `aggregate`.
 
-**载体**：`specs/task-search.md` → issues #26~28
+**Expected**:
+- [ ] Each brief contains all fields required by contract (see `references/brief-contract.md`)
+- [ ] Each issue body contains `Task Key / Spec Revision / Approved Revision / Current Stage / Workflow Entry State / Completion Basis / Code Publication State`
+- [ ] Structured event sequences in issue comments are continuous (1, 2, 3, ...)
+- [ ] `Spec Revision == Approved Revision` throughout
+- [ ] Parent-child issues correctly linked via `depends_on`
 
-**三个缺口验证**：
+**Actual**:
+- Core workflow fields present: Task Key, Issue Number, Spec Revision, Approved Revision, Current Stage, Next Stage, Workflow Entry State, Attempt Count, Max Retry Count, Code Publication State, Pass/Fail Outcome, Completion Basis, Code Ref, Dependencies, Work Breakdown, Source ✅
+- `Spec Revision == Approved Revision` throughout ✅
+- Brief section structure does not fully match `brief-contract.md`: uses `## Status` flat list instead of segmented `## Issue` + `## Classification` + `## Workflow State` ⚠️
+- `Approval State` field missing ❌
+- `Executability` not explicitly labeled (implicitly inferred from Type) ⚠️
+- Issue comments contain **no structured YAML events** (`iron_tree: ...` block) because execution was manual with no skill auto-posting ❌
+- Parent-child relation linked via brief Work Breakdown only, but GitHub issue body does not set `depends_on` ❌
 
-| 缺口 | #21 (v1 手动) | #27 (v2 模板驱动) | 结论 |
+**Root cause**:
+1. Manual execution of `/task` → `/run` → `/verify` → `/checkup`, no skill automation generating standard-format briefs and structured issue comments
+2. `brief-contract.md` defined section structure incompatible with manually created `## Status` list
+3. GitHub API not used to set `depends_on` / parent-child links
+
+**Fix**:
+- This is a skill implementation gap, not a protocol design error. TC-1.2 expectations should be re-validated after skill implementation is complete.
+- Current manually-created brief structure is sufficient for downstream `aggregate` and human review, but not machine-strict.
+- **v3 input**: `task` skill must strictly follow `brief-contract.md` section structure when generating briefs; `run`/`verify`/`checkup` skills must post structured events to issue comments.
+
+---
+
+### TC-1.2b v2 Task Skill Regression Validation (vs. #21)
+
+**Scenario**: Re-execute task-publish → run → verify → checkup using the templates/-driven v2 task skill flow, and compare against #21 (auth-core, v1 manual flow) to verify three gaps are closed.
+
+**Vehicle**: `specs/task-search.md` → issues #26~28
+
+**Three gap validations**:
+
+| Gap | #21 (v1 manual) | #27 (v2 template-driven) | Verdict |
 |------|---------------|-------------------|------|
-| **1. brief section 结构** | 使用 `## Status` 扁平列表，缺少 `Approval State`、`Executability` 等字段 ❌ | 使用 `templates/brief.md.tmpl`，包含全部 16 个 required sections（Issue, Classification, Dependencies, Acceptance Criteria, Verification, Target Files, Work Breakdown, Workflow State, Manual Acceptance, Failure Context, Completion Handoff, Execution Summary, Verification Summary, Pass/Fail Outcome, Open Questions / Warnings, Source）✅ | **关闭** |
-| **2. 结构化 YAML 事件** | issue 评论中无任何 `iron_tree:` block ❌ | issue #27 包含 4 个连续 sequence 事件：seq1 `task_published`, seq2 `run_started`, seq3 `verify_passed`, seq4 `checkup_done`，完整覆盖 workflow 生命周期 ✅ | **关闭** |
-| **3. GitHub depends_on** | 父子关系仅通过 brief Work Breakdown 描述，GitHub issue 本体无依赖声明 ❌ | #28 issue body 包含 `Depends on #27`，GitHub 原生识别并建立跨 issue 链接 ✅ | **关闭** |
+| **1. Brief section structure** | Uses `## Status` flat list, missing `Approval State`, `Executability`, etc. ❌ | Uses `templates/brief.md.tmpl`, contains all 16 required sections (Issue, Classification, Dependencies, Acceptance Criteria, Verification, Target Files, Work Breakdown, Workflow State, Manual Acceptance, Failure Context, Completion Handoff, Execution Summary, Verification Summary, Pass/Fail Outcome, Open Questions / Warnings, Source) ✅ | **CLOSED** |
+| **2. Structured YAML events** | No `iron_tree:` block in issue comments ❌ | Issue #27 contains 4 continuous sequence events: seq1 `task_published`, seq2 `run_started`, seq3 `verify_passed`, seq4 `checkup_done`, covering full workflow lifecycle ✅ | **CLOSED** |
+| **3. GitHub depends_on** | Parent-child relation only described in brief Work Breakdown, no dependency declaration in GitHub issue body ❌ | #28 issue body contains `Depends on #27`, GitHub natively recognizes and establishes cross-issue link ✅ | **CLOSED** |
 
-**额外验证（v1.4 新决议）**：
+**Additional validations (v1.4 new resolutions)**:
 
-| 决议 | 验证方式 | 结果 |
+| Resolution | Validation method | Result |
 |------|----------|------|
-| Verify Anchor SHA | `verify_passed` 事件包含 `verify_anchor_sha: 39bea0d` | ✅ 已记录 |
-| Execution Lock | 本实验为单任务串行，未触发锁竞争；`.mino/run.lock` 机制待 skill 实现后验证 | ⚠️ 待验证 |
-| External Events | 本实验无外部关闭场景，待 reconcile skill 实现后验证 | ⚠️ 待验证 |
+| Verify Anchor SHA | `verify_passed` event contains `verify_anchor_sha: 39bea0d` | ✅ Recorded |
+| Execution Lock | This experiment was single-task serial, lock contention not triggered; `.mino/run.lock` mechanism to be validated after skill implementation | ⚠️ TBD |
+| External Events | No external close scenario in this experiment, to be validated after reconcile skill implementation | ⚠️ TBD |
 
-**根因**：无
-**修复**：v2 task skill 模板和事件机制已覆盖三个缺口，缺口关闭。
-
----
-
-## Phase 2 — 自然不完美（真实开发常遇）
-
-> 每个 TC 标注 **🌡️ 真实频率** —— 这事在真实开发里多久会发生一次。
-
-### Run 阶段
-
-#### TC-2.1 第一次实现就 verify 失败
-🌡️ **真实频率：高（30%+）** — agent 写的代码经常第一次跑不过 lint 或 test。
-
-**场景**：agent 实现 `auth-core` 时漏掉一个 import，verify 阶段编译失败。
-**操作**：在 spec 里要求"密码必须用 bcrypt 哈希"，但不指定 bcrypt 版本，让 agent 容易踩 ESM/CJS 兼容坑。
-**预期**：
-- [ ] verify 输出 `fail_retryable`
-- [ ] `Attempt Count` 不被 verify 递增（保持为 1）
-- [ ] `Failure Context` 包含编译错误前 50 行
-- [ ] 自动回到 run，attempt 2 拿到 Failure Context 后修正
-
-**实际 / 根因 / 修复**：
-
-#### TC-2.2 仓库有未提交的本地变更
-🌡️ **真实频率：中** — 切 issue 时忘了 stash 是经典操作。
-
-> ⚠️ **协议依赖**：当前 `skills/run/SKILL.md` **未定义** dirty working tree 的 pre-flight 检测。该 TC 在补完该 skill 行为之前**预期失败**，失败本身就是结论。修复方向是先在 run skill 中补上 pre-flight 规则，再回归此 TC。
-
-**场景**：在 `/run issue-core` 之前，编辑器里 README.md 有未提交修改。
-**预期（目标态）**：run 的 pre-flight 检测到 dirty working tree，要么要求 stash，要么自动 stash + 完成后恢复，**绝不能让无关变更混入 commit**。
-**预期（当前态，跑前先确认）**：协议未定义 → run 直接执行 → 无关变更被裹入 commit。这一结果应当**触发 run skill 的修补**，不是直接判 TC fail。
-
-**实际 / 根因 / 修复**：
-
-#### TC-2.3 retry budget 耗尽
-🌡️ **真实频率：低，但出现就严重** — agent 真的不会的领域（如某个冷门 ORM）。
-
-**场景**：spec 要求一个 agent 不熟悉的框架特性，连续 4 次 run 都修不好。
-**预期**：第 4 次 verify 失败后判定 `fail_terminal`，issue 进入 `blocked`，不再自动 retry，要求人工介入。
-**关键不变量**：`retryable iff Attempt Count <= Max Retry Count`
-
-**实际 / 根因 / 修复**：
-
-#### TC-2.4 跳过依赖直接执行下游
-🌡️ **真实频率：中** — 用户记错顺序，直接 `/run` 下游 issue。
-
-**场景**：`auth-pages` 依赖 `auth-core`，但用户先 `/run issue-pages`。
-**预期**：run 检测依赖未 done，拒绝执行，提示先跑哪个。
-
-**实际 / 根因 / 修复**：
+**Root cause**: None
+**Fix**: v2 task skill templates and event mechanism cover all three gaps; gaps closed.
 
 ---
 
-### Verify 阶段
+## Phase 2 — Natural Imperfection (common in real development)
 
-#### TC-3.1 测试通过但 publish 失败
-🌡️ **真实频率：中** — VPN 抽风、token 过期、remote 改地址。
+> Each TC is labeled with **🌡️ Real-world frequency** — how often does this happen in real development.
 
-**场景**：测试全过，但 `git push` 因网络失败。
-**预期**：
-- [ ] `Current Stage` 保持 `verify`，不进 checkup
-- [ ] `Code Publication State` 保持 `local_only`
-- [ ] `Pass/Fail Outcome` 不被设置
-- [ ] `Attempt Count` 不变
-- [ ] 再次 `/verify issue-N` 重试 publish，不重跑测试
+### Run Phase
 
-**实际 / 根因 / 修复**：
+#### TC-2.1 First implementation fails verify
+🌡️ **Real-world frequency: high (30%+)** — agent-written code often fails lint or test on first try.
 
-#### TC-3.2 项目根本没有测试命令
-🌡️ **真实频率：高** — 早期项目、原型代码、文档型修改。
+**Scenario**: Agent implements `auth-core` but misses an import; verify stage compilation fails.
+**Operation**: In the spec require "passwords must be hashed with bcrypt" but do not specify bcrypt version, making it easy for the agent to hit ESM/CJS compatibility issues.
+**Expected**:
+- [ ] verify outputs `fail_retryable`
+- [ ] `Attempt Count` not incremented by verify (remains 1)
+- [ ] `Failure Context` contains first 50 lines of compilation error
+- [ ] Auto returns to run; attempt 2 receives Failure Context and corrects
 
-**场景**：todo-list 临时去掉 `package.json` 中的 test script。
-**预期**：verify 不能默认 pass，必须进 `pending_acceptance`，要求人工签字。
+**Actual / Root cause / Fix**:
 
-**实际 / 根因 / 修复**：
+#### TC-2.2 Uncommitted local changes in repo
+🌡️ **Real-world frequency: medium** — forgetting to stash when switching issues is a classic mistake.
 
-#### TC-3.3 测试错误输出爆炸
-🌡️ **真实频率：中** — snapshot diff、大型 e2e、循环错误。
+> ⚠️ **Protocol dependency**: Current `skills/run/SKILL.md` **does not define** dirty working tree pre-flight detection. This TC is **expected to fail** until that skill behavior is added; the failure itself is the conclusion. Fix direction is to add pre-flight rules to the run skill first, then re-run this TC.
 
-**场景**：测试产生 5000 行错误输出。
-**预期**：`Failure Context` 截断为前 50 行 + `...(truncated)...` + 后 20 行，关键信息保留。
+**Scenario**: Before `/run issue-core`, README.md has uncommitted edits in the editor.
+**Expected (target state)**: run pre-flight detects dirty working tree, either requires stash or auto-stashes + restores after completion, **must not let unrelated changes leak into the commit**.
+**Expected (current state, confirm before running)**: Protocol undefined → run executes directly → unrelated changes bundled into commit. This result should **trigger patching of the run skill**, not directly mark TC fail.
 
-**实际 / 根因 / 修复**：
+**Actual / Root cause / Fix**:
 
----
+#### TC-2.3 Retry budget exhausted
+🌡️ **Real-world frequency: low, but severe when it happens** — agent genuinely doesn't know a domain (e.g. some niche ORM).
 
-### Checkup 阶段
+**Scenario**: Spec requires a framework feature the agent is unfamiliar with; 4 consecutive runs fail to fix it.
+**Expected**: After 4th verify failure, mark `fail_terminal`, issue enters `blocked`, no more auto retry, requires human intervention.
+**Key invariant**: `retryable iff Attempt Count <= Max Retry Count`
 
-#### TC-4.1 Accept 时 publish 失败
-🌡️ **真实频率：低**
+**Actual / Root cause / Fix**:
 
-**场景**：任务进入 `pending_acceptance`，用户 `/checkup accept` 时网络断。
-**预期**：不记录 acceptance，状态全部不变，发出 `checkup_accept_publication_failed` 事件，下次重试。
+#### TC-2.4 Skip dependency and execute downstream directly
+🌡️ **Real-world frequency: medium** — user forgets the order and directly `/run` a downstream issue.
 
-**实际 / 根因 / 修复**：
+**Scenario**: `auth-pages` depends on `auth-core`, but user runs `/run issue-pages` first.
+**Expected**: run detects dependency not done, rejects execution, prompts which to run first.
 
-#### TC-4.2 误 accept 一个不该 accept 的任务
-🌡️ **真实频率：中** — 手快了。
-
-**场景**：对 `Current Stage: run` 的任务执行 `/checkup accept`。
-**预期**：拒绝执行，提示该任务不在 `pending_acceptance`。
-
-**实际 / 根因 / 修复**：
-
-#### TC-4.3 子任务未全 done 就想 aggregate 父任务
-🌡️ **真实频率：中** — 急于结案。
-
-**场景**：父 `auth-system` 还有 1 个子任务 blocked，用户 `/checkup aggregate`。
-**预期**：列出未完成子任务，拒绝聚合。
-
-**实际 / 根因 / 修复**：
-
-#### TC-4.4 `Close On Done: manual` 行为
-🌡️ **真实频率：低** — 但 bug 类任务常用。
-
-**场景**：在配置里设置 `issue.close_on_done: manual`。
-**预期**：任务 done 后 issue 保持 open，发出关闭提醒评论。
-
-**实际 / 根因 / 修复**：
+**Actual / Root cause / Fix**:
 
 ---
 
-### Spec 演化
+### Verify Phase
 
-#### TC-5.1 中途加一条验收标准
-🌡️ **真实频率：高** — 评审 / Code Review 才发现漏了。
+#### TC-3.1 Tests pass but publication fails
+🌡️ **Real-world frequency: medium** — VPN hiccup, token expired, remote URL changed.
 
-**场景**：DAG 已批准，跑了 2 个子任务后，spec 里加一条"密码必须包含数字"。
-**预期**：
-- [ ] 重新 `/task` 时检测到 `Spec Revision` 变化
-- [ ] 现有 issue body 中 `Spec Revision ≠ Approved Revision`
-- [ ] 标记 `reapproval_required`
-- [ ] 不自动执行任何 run，等用户重新审批
+**Scenario**: All tests pass, but `git push` fails due to network.
+**Expected**:
+- [ ] `Current Stage` stays `verify`, does not enter checkup
+- [ ] `Code Publication State` stays `local_only`
+- [ ] `Pass/Fail Outcome` not set
+- [ ] `Attempt Count` unchanged
+- [ ] Re-run `/verify issue-N` to retry publication, do not re-run tests
 
-**实际 / 根因 / 修复**：
+**Actual / Root cause / Fix**:
 
-#### TC-5.2 重复跑同一份 spec
-🌡️ **真实频率：高** — 验证幂等、误操作。
+#### TC-3.2 Project has no test commands at all
+🌡️ **Real-world frequency: high** — early projects, prototype code, documentation-only changes.
 
-**场景**：`/task specs/auth-system.md` 执行两次。
-**预期**：第二次检测到同 Task Key 的 open issue，跳过创建，brief 不被覆盖。
+**Scenario**: todo-list temporarily removes the test script from `package.json`.
+**Expected**: verify must not default to pass; must enter `pending_acceptance` and require human sign-off.
 
-**实际 / 根因 / 修复**：
+**Actual / Root cause / Fix**:
 
-#### TC-5.3 模糊的复合任务
-🌡️ **真实频率：高** — spec 一开始就写得含糊。
+#### TC-3.3 Test error output explosion
+🌡️ **Real-world frequency: medium** — snapshot diffs, large e2e, loop errors.
 
-**场景**：spec 只写"添加实时协作"，无验收标准、无目标文件。
-**预期**：`task` 明确标 `needs_breakdown` 并**拒绝生成 DAG**，反向要求用户补充信息。
-**反预期（应避免）**：基于薄弱信息冒进生成一个看似合理但其实是猜测的 DAG —— 这违反协议"不冒进"的原则。
+**Scenario**: Tests produce 5000 lines of error output.
+**Expected**: `Failure Context` truncated to first 50 lines + `...(truncated)...` + last 20 lines, preserving critical information.
 
-> 备注：自动分解到子任务粒度对当前 agent 能力要求过高，不作为本 TC 验收标准。能识别"信息不足"已经是协议价值的体现。
-
-**实际 / 根因 / 修复**：
+**Actual / Root cause / Fix**:
 
 ---
 
-### 状态恢复
+### Checkup Phase
 
-#### TC-6.1 brief 全删了重建
-🌡️ **真实频率：低，但发生就严重** — 换机器、清缓存、误删。
+#### TC-4.1 Publish fails during Accept
+🌡️ **Real-world frequency: low**
 
-**场景**：完成部分 workflow（`auth-core` done，`auth-pages` running）后 `rm -rf .mino/briefs/*`，然后 `/checkup reconcile`。
-**预期**：从 issue 评论中按 sequence 重放结构化事件，重建所有 brief，状态完全恢复（包括 Attempt Count、两个 Revision 字段）。
+**Scenario**: Task enters `pending_acceptance`, user `/checkup accept` but network drops.
+**Expected**: Do not record acceptance, all states unchanged, emit `checkup_accept_publication_failed` event, retry next time.
 
-**实际 / 根因 / 修复**：
+**Actual / Root cause / Fix**:
 
-#### TC-6.2 事件序列号有缺口
-🌡️ **真实频率：低** — 用户手动删了某条评论。
+#### TC-4.2 Mistakenly accept a task that should not be accepted
+🌡️ **Real-world frequency: medium** — hand slipped.
 
-**场景**：sequence 1, 2, 3 中删掉 2，再 reconcile。
-**预期**：基于最高有效 sequence 重建，不因缺失而失败，但应告警。
+**Scenario**: Execute `/checkup accept` on a task with `Current Stage: run`.
+**Expected**: Reject execution, prompt that this task is not in `pending_acceptance`.
 
-**实际 / 根因 / 修复**：
+**Actual / Root cause / Fix**:
+
+#### TC-4.3 Aggregate parent before all children are done
+🌡️ **Real-world frequency: medium** — eager to close.
+
+**Scenario**: Parent `auth-system` still has 1 child task blocked; user runs `/checkup aggregate`.
+**Expected**: List incomplete child tasks, reject aggregation.
+
+**Actual / Root cause / Fix**:
+
+#### TC-4.4 `Close On Done: manual` behavior
+🌡️ **Real-world frequency: low** — but common for bug-type tasks.
+
+**Scenario**: Set `issue.close_on_done: manual` in config.
+**Expected**: Issue stays open after task done, emit close-reminder comment.
+
+**Actual / Root cause / Fix**:
 
 ---
 
-## Phase 3 — 协议待定（失败即 v3 设计输入）
+### Spec Evolution
 
-> 这一段的 TC **不是测试 skill 是否实现正确**，而是**测试协议规范本身有没有想清楚**。
+#### TC-5.1 Add an acceptance criterion mid-flight
+🌡️ **Real-world frequency: high** — discovered during review / code review.
+
+**Scenario**: DAG already approved, 2 child tasks ran, then spec adds "password must contain numbers".
+**Expected**:
+- [ ] Re-`/task` detects `Spec Revision` change
+- [ ] Existing issue body shows `Spec Revision ≠ Approved Revision`
+- [ ] Mark `reapproval_required`
+- [ ] Do not auto-execute any run, wait for user re-approval
+
+**Actual / Root cause / Fix**:
+
+#### TC-5.2 Run the same spec twice
+🌡️ **Real-world frequency: high** — idempotency verification, misoperation.
+
+**Scenario**: `/task specs/auth-system.md` executed twice.
+**Expected**: Second run detects existing open issue with same Task Key, skips creation, brief not overwritten.
+
+**Actual / Root cause / Fix**:
+
+#### TC-5.3 Vague composite task
+🌡️ **Real-world frequency: high** — spec was vague from the start.
+
+**Scenario**: Spec only says "add real-time collaboration", no acceptance criteria, no target files.
+**Expected**: `task` explicitly marks `needs_breakdown` and **refuses to generate DAG**, requesting the user to provide more information.
+**Anti-expected (must avoid)**: Rush to generate a seemingly reasonable but actually guessed DAG based on weak information — this violates the protocol's "no rushing" principle.
+
+> Note: Automatic decomposition to sub-task granularity is too demanding for current agent capabilities and is not an acceptance criterion for this TC. Being able to recognize "insufficient information" is already a manifestation of protocol value.
+
+**Actual / Root cause / Fix**:
+
+---
+
+### State Recovery
+
+#### TC-6.1 All briefs deleted, rebuild from scratch
+🌡️ **Real-world frequency: low, but severe when it happens** — machine swap, cache clear, accidental deletion.
+
+**Scenario**: After partial workflow completion (`auth-core` done, `auth-pages` running), `rm -rf .mino/briefs/*`, then `/checkup reconcile`.
+**Expected**: Replay structured events from issue comments by sequence, rebuild all briefs, state fully recovered (including Attempt Count, both Revision fields).
+
+**Actual / Root cause / Fix**:
+
+#### TC-6.2 Event sequence has gaps
+🌡️ **Real-world frequency: low** — user manually deleted a comment.
+
+**Scenario**: In sequence 1, 2, 3, delete 2, then reconcile.
+**Expected**: Rebuild based on highest valid sequence, do not fail due to missing sequence, but should warn.
+
+**Actual / Root cause / Fix**:
+
+---
+
+## Phase 3 — Protocol TBD (failure = v3 design input)
+
+> The TCs in this section **are not testing whether skills are implemented correctly**, but **whether the protocol spec itself has been thought through**.
 >
-> **流程契约**：
-> 1. 跑 TC 之前，先就该议题做出协议决策（在本节填 ✅ 决议）
-> 2. 跑 TC，验证决策能落地
-> 3. **决议必须写回 `skills/references/iron-tree-protocol.md`**（或对应合约文件），不允许只留在本文件 —— TEST_PLAN 不是协议规范，只是验证执行的脚手架
+> **Process contract**:
+> 1. Before running a TC, make a protocol decision on the topic (fill ✅ resolution in this section)
+> 2. Run the TC, validate the decision can be implemented
+> 3. **Resolution must be written back to `skills/references/iron-tree-protocol.md`** (or corresponding contract file), not allowed to stay only in this file — TEST_PLAN is not the protocol spec, just execution scaffolding
 
-### TC-7.1 issue 被外部关闭 ⭐ 高优先级
-**为什么重要**：直接影响**状态一致性模型** —— 协议必须回答"谁是 source of truth"。
-**未明确**：用户在 GitHub 上手动关了一个 open issue，reconcile 时该如何处理？
-**候选方案**：
-- A. 同步关闭 brief，标记 done
-- B. 标记不一致，要求人工确认（**倾向**：保留人对 GitHub 的信任，brief 不被外部操作覆盖）
-- C. 重新打开 issue
-**决议**：✅ B。reconcile 发现 issue 被外部关闭但无对应的 workflow `done` 事件时：
-- 不自动同步 brief 到 `done`（保留人对 GitHub 的信任）
-- 在 brief 的 `External Event` 字段记录 `issue_closed`，在 `Workflow Entry State` 中标记 `blocked`
-- 在 issue 评论中发布 `checkup_reconcile_external_close_detected` 事件
-- 要求人工确认后才能继续
+### TC-7.1 Issue closed externally ⭐ High priority
+**Why important**: Directly impacts the **state consistency model** — the protocol must answer "who is the source of truth".
+**Undefined**: User manually closes an open issue on GitHub; how should reconcile handle it?
+**Candidate solutions**:
+- A. Sync close brief, mark done
+- B. Mark inconsistency, require human confirmation (**preference**: preserve human trust in GitHub, brief not overwritten by external actions)
+- C. Re-open the issue
+**Resolution**: ✅ B. When reconcile detects an issue was externally closed but no corresponding workflow `done` event exists:
+- Do not auto-sync brief to `done` (preserve human trust in GitHub)
+- Record `issue_closed` in brief's `External Event` field, mark `blocked` in `Workflow Entry State`
+- Post `checkup_reconcile_external_close_detected` event in issue comment
+- Require human confirmation before proceeding
 
-→ 已写入 `iron-tree-protocol.md` § External Events
+→ Written to `iron-tree-protocol.md` § External Events
 
-### TC-7.2 并行执行两个 run
-**为什么重要**：影响并发模型，但 v1 可暂以"显式禁止"绕开。
-**未明确**：两个终端同时 `/run issue-A` 和 `/run issue-B` 该怎么处理？
-**候选方案**：
-- A. v1 显式禁止（**倾向**：用 `.mino/run.lock` 文件锁，简单且可逆）
-- B. 允许无依赖任务并行，加冲突检测
-- C. 完全允许，由用户自负其责
-**决议**：✅ A。v1 显式禁止并行 `run`。
-- `run` 启动前检查 `.mino/run.lock`；若存在则拒绝执行并提示当前正在运行的 task key
-- 锁文件包含 task key 和 ISO 时间戳
-- `run` 正常完成（包括 verify 阶段）或异常退出时由 `run` skill 清理锁文件
-- v3 再评估无依赖任务并行（需解决文件冲突和状态竞争）
+### TC-7.2 Two runs executed in parallel
+**Why important**: Impacts concurrency model, but v1 can temporarily bypass with "explicitly prohibited".
+**Undefined**: Two terminals simultaneously `/run issue-A` and `/run issue-B`; how to handle?
+**Candidate solutions**:
+- A. v1 explicitly prohibits (**preference**: use `.mino/run.lock` file lock, simple and reversible)
+- B. Allow dependency-free tasks to run in parallel, with conflict detection
+- C. Fully allow, user takes responsibility
+**Resolution**: ✅ A. v1 explicitly prohibits parallel `run`.
+- `run` checks `.mino/run.lock` before starting; if present, reject execution and show currently running task key
+- Lock file contains task key and ISO timestamp
+- `run` normally completes (including verify phase) or exits abnormally, then `run` skill cleans up the lock file
+- v3 will re-evaluate parallel execution of dependency-free tasks (requires solving file conflicts and state races)
 
-→ 已写入 `iron-tree-protocol.md` § Execution Lock
+→ Written to `iron-tree-protocol.md` § Execution Lock
 
-### TC-7.3 verify 期间代码被修改 ⭐ 高优先级
-**为什么重要**：直接影响**状态一致性模型** —— 协议必须定义"verify 锚定的 snapshot 是什么"。
-**未明确**：verify 跑了 10 分钟，期间用户改了代码，verify 以哪个为准？
-**候选方案**：
-- A. 以 verify 启动时的 commit SHA 为准（**倾向**：run 必须先 commit 才能 verify，verify 锚定 SHA）
-- B. verify 结束时再 snapshot
-- C. 检测到变更直接 abort verify
-**决议**：✅ A。`verify` 以启动时的 commit SHA 为准。
-- `run` 必须先 commit 才能 handoff 到 `verify`（`Code Publication State: local_only → published` 在 verify 前完成）
-- `verify` 启动时记录 `Verify Anchor SHA` = 当前 HEAD
-- `verify` 只验证已提交的代码；期间工作区变更是独立的，不影响 verify 结果
-- 若 `verify` 失败（retryable），下一次 `run` 基于该 SHA 或更新的已提交代码重新开始
-- `workflow-state-contract.md` 已增加 `Verify Anchor SHA` 字段
+### TC-7.3 Code modified during verify ⭐ High priority
+**Why important**: Directly impacts the **state consistency model** — the protocol must define "what snapshot does verify anchor to".
+**Undefined**: verify runs for 10 minutes, during which user modifies code; which version counts?
+**Candidate solutions**:
+- A. Use commit SHA at verify start (**preference**: run must commit before verify can start, verify anchors to SHA)
+- B. Snapshot at verify end
+- C. Detect changes and abort verify
+**Resolution**: ✅ A. `verify` uses the commit SHA at start time.
+- `run` must commit before handing off to `verify` (`Code Publication State: local_only → published` completed before verify)
+- `verify` records `Verify Anchor SHA` = current HEAD at start
+- `verify` only validates committed code; working directory changes during verify are independent and do not affect verify results
+- If `verify` fails (retryable), next `run` restarts based on that SHA or newer committed code
+- `workflow-state-contract.md` already added `Verify Anchor SHA` field
 
-→ 已写入 `iron-tree-protocol.md` § Verify Anchor
+→ Written to `iron-tree-protocol.md` § Verify Anchor
 
 ---
 
-## 执行节奏
+## Execution Cadence
 
-| 轮次 | 范围 | 准入 | 准出 |
+| Round | Scope | Entry criteria | Exit criteria |
 |---|---|---|---|
-| **第一轮** | Phase 1（TC-1.x） | 仓库 reset 到 baseline tag | TC-1.1 全部 ✅ |
-| **第二轮** | Phase 2（TC-2.x ~ TC-6.x） | 第一轮通过 | 大部分 ✅，失败项有根因记录 |
-| **第三轮** | Phase 3（TC-7.x） | 先做协议决策再跑 | 决议沉淀到 `references/` |
+| **Round 1** | Phase 1 (TC-1.x) | Repo reset to baseline tag | TC-1.1 all ✅ |
+| **Round 2** | Phase 2 (TC-2.x ~ TC-6.x) | Round 1 passed | Most ✅, failed items have root cause recorded |
+| **Round 3** | Phase 3 (TC-7.x) | Make protocol decisions first | Resolutions written to `references/` |
 
-**每轮约定**：
-- 每个 TC 跑完立即把"实际/根因/修复"填回此文件
-- 同一文件 commit，通过 git history 留下迭代痕迹
-- 第一轮跑通就把 TEST_PLAN.md push 到主仓库 —— 它本身就是产物
+**Per-round convention**:
+- Immediately fill "Actual/Root cause/Fix" back into this file after each TC
+- Commit the same file, leaving iterative traces through git history
+- Push TEST_PLAN.md to main repo after Round 1 passes — it is itself an artifact
 
 ---
 
-## 成功的标准
+## Success Criteria
 
-| 达到 | 含义 | 行动 |
+| Achievement | Meaning | Action |
 |---|---|---|
-| Phase 1 全通过 | 协议**就绪**，可开始小规模真实使用 | 写一篇 dogfood 实录博客 |
-| Phase 1 + Phase 2 大部分通过 | 协议**生产可用** | 在 README 加"已验证场景"章节 |
-| Phase 3 全数有决议 | 协议 **v3 完整** | **决议必须写回 `references/iron-tree-protocol.md`**，TEST_PLAN 仅作执行追溯 |
+| Phase 1 all pass | Protocol **ready**, can begin small-scale real usage | Write a dogfood blog post |
+| Phase 1 + Phase 2 mostly pass | Protocol **production-ready** | Add "Validated scenarios" section to README |
+| Phase 3 all have resolutions | Protocol **v3 complete** | **Resolutions must be written back to `references/iron-tree-protocol.md`**, TEST_PLAN only serves as execution trace |
 
-**最低验收线：TC-1.1 全部 ✅。**
-其余一切都是锦上添花。
+**Minimum acceptance line: TC-1.1 all ✅.**
+Everything else is a bonus.
 
 ---
 
-## 附：当前已知协议缺口快照
+## Appendix: Current Known Protocol Gap Snapshot
 
-迁移自旧版 TEST_PLAN，作为 Phase 3 议题来源：
+Migrated from old TEST_PLAN, serving as Phase 3 topic sources:
 
-- TC-7.1 ← 旧 TC-5.2（外部关闭 issue 处理）
-- TC-7.2 ← 旧 TC-6.2（并行执行策略）
-- TC-7.3 ← 旧 TC-6.3（verify 期间代码变更的确定性）
+- TC-7.1 ← old TC-5.2 (external close handling)
+- TC-7.2 ← old TC-6.2 (parallel execution strategy)
+- TC-7.3 ← old TC-6.3 (verify mid-flight code change determinism)
 
-旧版「故障注入」框架的具体 TC 编号已合并/重命名到 Phase 1-3，原文件保留在 git history 中。
+Old "fault injection" framework specific TC numbers have been merged/renamed into Phase 1-3; original file preserved in git history.

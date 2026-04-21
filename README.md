@@ -1,3 +1,5 @@
+**English** | [简体中文](README.zh.md)
+
 # Mino Skills
 
 [![Version](https://img.shields.io/badge/release-v0.1.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.1.0)
@@ -73,7 +75,7 @@ mino-skills/
 
 The [`skills`](https://github.com/vercel-labs/skills) CLI installs skills to 45+ AI tools with one command.
 
-在项目目录下运行：
+Run inside your project directory:
 
 **Claude Code**
 
@@ -285,13 +287,13 @@ rm -rf ~/.agents/skills/mino
 
 ## Contributing
 
-欢迎提交技能改进。贡献流程：
+Contributions welcome. Workflow:
 
-1. **Fork** 本仓库
-2. **修改** `SKILL.md` 或添加新技能
-3. **提交 PR**，描述变更动机和影响范围
+1. **Fork** this repository
+2. **Edit** a `SKILL.md` or add a new skill
+3. **Open a PR** describing the motivation and impact
 
-如有疑问，请联系 dev@example.com。
+For questions, contact dev@example.com.
 
 ## License
 
