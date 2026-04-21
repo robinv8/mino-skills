@@ -255,6 +255,16 @@ rm -rf ~/.claude/skills/mino
 rm -rf ~/.agents/skills/mino
 ```
 
+## Contributing
+
+欢迎提交技能改进。贡献流程：
+
+1. **Fork** 本仓库
+2. **修改** `SKILL.md` 或添加新技能
+3. **提交 PR**，描述变更动机和影响范围
+
+如有疑问，请联系 dev@example.com。
+
 ## License
 
 MIT
