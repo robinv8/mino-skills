@@ -113,8 +113,23 @@
 - [ ] 父子 issue 通过 `depends_on` 正确链接
 
 **实际**：
+- 核心工作流字段齐全：Task Key、Issue Number、Spec Revision、Approved Revision、Current Stage、Next Stage、Workflow Entry State、Attempt Count、Max Retry Count、Code Publication State、Pass/Fail Outcome、Completion Basis、Code Ref、Dependencies、Work Breakdown、Source ✅
+- `Spec Revision == Approved Revision` 全程 ✅
+- brief section 结构与 `brief-contract.md` 不完全一致：使用 `## Status` 而非 `## Issue` + `## Classification` + `## Workflow State` 的分段方式 ⚠️
+- `Approval State` 字段缺失 ❌
+- `Executability` 未显式标注（由 Type 隐式推断）⚠️
+- issue 评论中**无结构化 YAML 事件**（`iron_tree: ...` block），因为当前为手动执行，无 skill 自动发帖 ❌
+- 父子 issue 通过 brief 中 Work Breakdown 链接，但 GitHub issue 本体未设置 `depends_on` ❌
+
 **根因**：
+1. 手动执行 `/task` → `/run` → `/verify` → `/checkup`，无 skill 自动化生成标准格式 brief 和结构化 issue 评论
+2. `brief-contract.md` 定义的 section 结构与手动创建的 `## Status` 列表不兼容
+3. GitHub API 未用于设置 `depends_on` / 父子链接
+
 **修复**：
+- 这是 skill 实现缺口，不是协议设计错误。TC-1.2 的预期应在 skill 实现完成后回归验证。
+- 当前手动执行的 brief 结构已足够支持下游 `aggregate` 和人工审阅，但不够机器严格。
+- **v3 输入**：`task` skill 生成 brief 时必须严格遵循 `brief-contract.md` 的 section 结构；`run`/`verify`/`checkup` skill 必须 posting 结构化事件到 issue 评论。
 
 ---
 
