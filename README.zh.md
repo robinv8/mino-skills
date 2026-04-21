@@ -171,6 +171,16 @@ cat skills/task/SKILL.md
 
 Pull Request 不会被接管；它们像往常一样继续合并到 issue 上。
 
+### Comment 策略（v1.10）
+
+Iron Tree Protocol v1.10 将本地 `.mino/events/issue-N/*.yml` 视为唯一真相源。GitHub issue comment 是通知渠道，不是事件日志：
+
+- 常规成功过渡（adopt、run、verify pass）**静默** —— 不发 comment。
+- 需要人工介入的 halt / 失败仍会立即发 comment，让你看到信号。
+- 完成时，`/checkup done` 会发**一条汇总 comment**，内联所有 event yml，以便本地日志丢失时仍可从 GitHub 单独 replay 工作流。
+
+v1.10 之前的问题（per-event comment）继续可被 `/checkup reconcile` 作为 fallback 来源读取。
+
 ## 更新
 
 `mino-skills` 遵循标准 Agent Skills 约定：`main` 始终是已发布分支，`skills` CLI 按需拉取最新内容。

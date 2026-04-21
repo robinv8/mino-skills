@@ -171,6 +171,16 @@ Workflow position is mirrored on GitHub via labels:
 
 Pull Requests are not adopted; they continue to merge against issues as usual.
 
+### Comment Policy (v1.10)
+
+Iron Tree Protocol v1.10 treats local `.mino/events/issue-N/*.yml` as the single source of truth. GitHub issue comments are a notification channel, not an event log:
+
+- Routine successful transitions (adopt, run, verify pass) are **silent** — no comment.
+- Halts / failures that require human action still post an immediate comment so you see the signal.
+- On completion, `/checkup done` posts **one consolidated summary comment** inlining every event yml, so the workflow can be replayed from GitHub alone if the local log is lost.
+
+Pre-v1.10 issues (per-event comments) continue to be readable by `/checkup reconcile` as a fallback source.
+
 ## Update
 
 `mino-skills` follows the standard Agent Skills convention: `main` is always the released branch, and the `skills` CLI pulls the latest content on demand.
