@@ -2,7 +2,7 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.1.1-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.1.1)
+[![Version](https://img.shields.io/badge/release-v0.3.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.3.0)
 [![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.10-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
