@@ -34,6 +34,7 @@ Local briefs also carry workflow cache fields for scheduling and recovery:
 - `Failure Context`
 - `Execution Summary`
 - `Verification Summary`
+- `External Event` (optional; populated by `checkup reconcile` when an out-of-band event is detected, e.g., the linked issue is closed without a recorded `checkup_done`)
 
 The linked GitHub issue body plus structured workflow events are the authoritative record. Brief state is a local cache for fast DAG scheduling and may drift; `checkup reconcile` repairs the brief from issue metadata and the latest valid workflow event sequence.
 
@@ -163,6 +164,7 @@ Allowed `event` values:
 - `checkup_accept_recorded`
 - `checkup_aggregate_recorded`
 - `checkup_done`
+- `checkup_reconcile_external_close_detected`
 - `loop_halted` (Loop Mode handed control back to a human; see `iron-tree-protocol.md` § Execution Modes; carries a `halt_reason` field)
 - `loop_resumed` (a human re-engaged after a previous `loop_halted`; carries the prior `halt_reason` for traceability)
 

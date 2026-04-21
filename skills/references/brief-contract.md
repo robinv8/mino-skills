@@ -31,6 +31,7 @@ A compliant brief should contain these sections:
 - `Workflow State`
 - `Manual Acceptance`
 - `Failure Context`
+- `External Event`
 - `Completion Handoff`
 - `Execution Summary`
 - `Verification Summary`
@@ -38,7 +39,7 @@ A compliant brief should contain these sections:
 - `Open Questions / Warnings`
 - `Source`
 
-`Work Breakdown` is required for composite tasks. `Manual Acceptance`, `Failure Context`, `Execution Summary`, `Verification Summary`, and `Pass/Fail Outcome` may be absent until the workflow reaches those phases.
+`Work Breakdown` is required for composite tasks. `Manual Acceptance`, `Failure Context`, `External Event`, `Execution Summary`, `Verification Summary`, and `Pass/Fail Outcome` may be absent until the workflow reaches those phases.
 
 ## Required Fields By Section
 
@@ -79,6 +80,15 @@ Required when `Workflow Entry State: pending_acceptance`:
 - `Checklist`
 - `Action`
 
+### External Event
+
+Optional. Populated by `checkup reconcile` when out-of-band activity contradicts workflow state (e.g., the linked issue is closed externally). Required fields when present:
+
+- `Event` (e.g., `issue_closed`)
+- `Detected At`
+- `Source` (e.g., `github`)
+- `Action` (the human follow-up the protocol requires)
+
 ### Completion Handoff
 
 - `Completion Basis` when known
@@ -90,7 +100,7 @@ Managed by skills:
 
 - `Issue`, `Classification`, `Dependencies`
 - `Acceptance Criteria`, `Verification`, `Target Files`
-- `Work Breakdown`, `Workflow State`, `Manual Acceptance`, `Failure Context`
+- `Work Breakdown`, `Workflow State`, `Manual Acceptance`, `Failure Context`, `External Event`
 - `Completion Handoff`, `Execution Summary`, `Verification Summary`, `Pass/Fail Outcome`
 - `Source`
 
@@ -119,6 +129,7 @@ Brief state is a local cache for fast DAG scheduling and CLI inspection.
 | Workflow State | Revision, stage, gate state, attempt budget, and publication state |
 | Manual Acceptance | Detailed local checklist for pending human verification |
 | Failure Context | Exact failure payload for self-correction |
+| External Event | Out-of-band activity detected during reconciliation that contradicts workflow state |
 | Completion Handoff | How the task became completable: verified, accepted, or aggregated |
 | Execution Summary | Concrete execution results |
 | Verification Summary | Concrete verification or acceptance or aggregation results |
