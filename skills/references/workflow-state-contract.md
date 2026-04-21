@@ -22,6 +22,7 @@ Every workflow-driven work item must carry these fields:
 - `Code Publication State`
 - `Pass/Fail Outcome` (optional until completion evidence exists)
 - `Completion Basis` (optional until the task is ready to finalize)
+- `Halt Reason` (optional; set only when Loop Mode halts on this task; see `iron-tree-protocol.md` § Execution Modes)
 
 Local briefs also carry workflow cache fields for scheduling and recovery:
 
@@ -160,6 +161,24 @@ Allowed `event` values:
 - `checkup_accept_recorded`
 - `checkup_aggregate_recorded`
 - `checkup_done`
+- `loop_halted` (Loop Mode handed control back to a human; see `iron-tree-protocol.md` § Execution Modes; carries a `halt_reason` field)
+- `loop_resumed` (a human re-engaged after a previous `loop_halted`; carries the prior `halt_reason` for traceability)
+
+## Halt Reason
+
+`Halt Reason` is set on a task's brief only when Loop Mode halts on that task. It mirrors the `halt_reason` field on the `loop_halted` event and is cleared on the next successful transition out of the halting state.
+
+Allowed values:
+
+- `goal_reached`
+- `pending_acceptance`
+- `blocked`
+- `fail_terminal`
+- `reapproval_required`
+- `protocol_gap`
+- `loop_budget_exhausted`
+
+`Halt Reason` is informational. It does not by itself permit any state transition; it records why automated execution stopped so a human can resume from a known point.
 
 ## Pending Acceptance Coordination
 
