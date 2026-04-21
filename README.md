@@ -293,7 +293,7 @@ Contributions welcome. Workflow:
 2. **Edit** a `SKILL.md` or add a new skill
 3. **Open a PR** describing the motivation and impact
 
-For questions, contact dev@example.com.
+For questions, contact hello@robinren.me.
 
 ## License
 
