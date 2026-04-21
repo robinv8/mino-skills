@@ -116,9 +116,12 @@ When validation has not yet completed, `Pass/Fail Outcome` may be omitted.
 
 ## Structured Workflow Events
 
-Any skill that mutates workflow state must post a short human-readable summary to the linked issue and include a machine-readable event block.
+Every state-changing event has two sinks:
 
-The event schema is fixed:
+1. **Local event file** — `.mino/events/issue-{N}/{sequence:04d}-{event-kebab}.yml`. Authoritative. Must be written before any comment is attempted.
+2. **GitHub comment** — optional mirror; see § Event Categories.
+
+The event schema inside both sinks is identical:
 
 ```yaml
 iron_tree:
@@ -143,33 +146,64 @@ iron_tree:
 
 Rules:
 
-- `sequence` must increase monotonically by `1` for each state-changing event on the same `Task Key` and `Approved Revision`
-- Recovery must ignore malformed events and any event whose `Approved Revision` does not match the task's current approved revision
-- Human free-form comments without a valid event block are informational only and must not drive reconciliation
+- `sequence` must increase monotonically by `1` for each state-changing event on the same `Task Key` and `Approved Revision`, counted across local events regardless of comment visibility.
+- Recovery must ignore malformed events and any event whose `Approved Revision` does not match the task's current approved revision.
+- Human free-form comments without a valid event block are informational only and must not drive reconciliation.
+- When a comment is posted, it must exactly reproduce the local file's yml block; skills must not modify, re-serialize, or add fields on the way out.
 
-Allowed `event` values:
+## Event Categories
+
+Events fall into exactly one category:
+
+### Silent (local only)
+
+These events do not produce GitHub comments. They are recorded solely in the local log.
 
 - `task_published`
-- `task_reapproval_required`
+- `task_adopted`
+- `task_re_adopted`
 - `run_started`
 - `run_completed`
-- `run_commit_failed`
 - `verify_passed`
-- `verify_publication_failed`
-- `verify_failed_retryable`
-- `verify_failed_terminal`
-- `verify_pending_acceptance`
-- `checkup_preflight_blocked`
-- `checkup_accept_publication_failed`
 - `checkup_accept_recorded`
 - `checkup_aggregate_recorded`
-- `checkup_done`
+- `loop_resumed`
+
+### Audible (post immediately)
+
+These events demand human attention and post a comment with a human-readable narrative and the full yml block, at the time of emission.
+
+- `task_reapproval_required`
+- `run_commit_failed`
+- `verify_failed_retryable`
+- `verify_failed_terminal`
+- `verify_publication_failed`
+- `verify_pending_acceptance`
+- `loop_halted`
+- `checkup_preflight_blocked`
+- `checkup_accept_publication_failed`
 - `checkup_reconcile_external_close_detected`
 - `checkup_reconcile_sequence_gap_detected`
-- `loop_halted` (Loop Mode handed control back to a human; see `iron-tree-protocol.md` § Execution Modes; carries a `halt_reason` field)
-- `loop_resumed` (a human re-engaged after a previous `loop_halted`; carries the prior `halt_reason` for traceability)
-- `task_adopted` (sequence 1; opens an adopted chain; carries `adopted_from: github_issue`, `original_title`, `issue_url`)
-- `task_re_adopted` (sequence 1; opens a fresh chain after re-adopt; carries `previous_revision`, `archive_path`)
+
+Every audible comment MUST include, directly above the yml block, the line:
+
+```
+Local events: `.mino/events/issue-{N}/`
+```
+
+so humans / other agents know where the full authoritative log lives.
+
+### Terminal (consolidated summary)
+
+Only one event is terminal:
+
+- `checkup_done`
+
+Its comment is a consolidated summary that inlines every local event yml block for the active `approved_revision` in ascending `sequence` order. See `skills/checkup/templates/comment-checkup-summary.md.tmpl`. This is the sole GitHub-visible evidence for successfully completed work.
+
+## Back-Compatibility with Legacy Chains
+
+Issues completed under protocol ≤ v1.9 have per-event comments. `checkup reconcile` continues to accept them as a secondary source. v1.10 skills never emit new silent-category comments, so the corpus of per-event silent comments cannot grow after upgrade. Legacy chains must not be rewritten or squashed.
 
 ## Halt Reason
 

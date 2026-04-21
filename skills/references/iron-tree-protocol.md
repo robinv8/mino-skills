@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.9
+> Version: 1.10
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -96,13 +96,14 @@ This field is required in Loop Mode so the Decision Function can distinguish bet
 ## Source Of Truth
 
 - Stable task metadata lives in the GitHub issue body
-- Workflow transitions live in structured workflow events posted as issue comments
+- **Workflow transitions live in the local event log** (`.mino/events/issue-{N}/*.yml`) — this is the authoritative record
+- GitHub issue comments are a notification mirror, not the primary source
 - Local briefs are a cache for scheduling, inspection, and recovery
-- `checkup reconcile` repairs local drift by replaying valid events for the active approved revision
+- `checkup reconcile` repairs local drift by replaying valid events from the local log for the active approved revision
 
 ## External Events
 
-The source system (GitHub) is authoritative for issue existence and visibility, but workflow state is authoritative for completion. When an external event contradicts workflow state, the protocol must not silently overwrite workflow state.
+The source system (GitHub) is authoritative for issue existence and visibility, but the local event log is authoritative for workflow state and completion. When an external event contradicts workflow state, the protocol must not silently overwrite workflow state.
 
 ### Issue Closed Externally
 
@@ -115,6 +116,24 @@ When `checkup reconcile` discovers that an issue is closed on GitHub but has no 
 5. Require human confirmation before the task can advance
 
 This preserves the invariant that `done` requires recorded completion evidence, not just a closed issue tracker entry.
+
+## Event Recording & Comment Policy
+
+Each workflow event has two persistence targets:
+
+1. **Local event log** — `.mino/events/issue-{N}/{sequence:04d}-{event-kebab}.yml` is the **authoritative source of truth**. Every skill that mutates workflow state MUST write this file before taking any further action. If the local write fails, the event did not happen.
+
+2. **GitHub issue comment** — a mirror / notification channel, governed by the event's category:
+
+   - **silent** events: do not post any comment. The local yml is the complete record.
+   - **audible** events: post an independent comment with human narrative + the yml block, so humans see halt / failure signals without polling the local filesystem.
+   - **terminal** events (`checkup_done`): post a single consolidated summary comment that inlines every local event's yml block for the active `approved_revision`, in `sequence` order. This makes GitHub a self-contained replay source even if the local log is later lost.
+
+`workflow-state-contract.md` § Event Categories lists exact assignments.
+
+Comment posting is always best-effort and non-fatal. On failure, the skill logs `comment_post_failed: <reason>` in its own report and continues. The local yml remains correct.
+
+`checkup reconcile` reads **local events first**, falls back to the terminal summary comment for `done` issues, and only falls back to per-event comments for pre-v1.10 (legacy v1.9 or earlier) issues.
 
 ## Multi-Agent Git Hygiene
 
@@ -138,8 +157,9 @@ The protocol's native entry point is `/task <spec.md>`, which posts `task_publis
 
 - A local brief at `.mino/briefs/issue-{N}.md` (same template as native)
 - An event yml at `.mino/events/issue-{N}/0001-task-adopted.yml` with `event: task_adopted` and `sequence: 1`
-- An issue comment carrying the same yml block, so reconciliation can replay it
 - A pair of GitHub labels marking workflow position: `iron-tree:adopted` (permanent) + `stage:task` (mutable)
+
+Adoption events are **silent** in v1.10; no GitHub comment is posted. The local yml is the authoritative record, and `checkup reconcile` reads it directly.
 
 ### Eligibility
 
