@@ -2,7 +2,7 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.4.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.4.0)
+[![Version](https://img.shields.io/badge/release-v0.5.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.5.0)
 [![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.11-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
@@ -69,9 +69,19 @@ mino-skills/
 └── LICENSE
 ```
 
-## Install
+## Install (Plugin Marketplace, recommended)
 
-### Using `skills` CLI (recommended)
+Supported hosts: Copilot CLI, Claude Code, Cursor.
+
+```bash
+/plugin marketplace add robinv8/mino-skills
+/plugin install mino@mino-skills
+/plugin update mino@mino-skills    # later upgrades — finally smooth
+```
+
+## Install (Alternative — vercel-labs CLI)
+
+If your agent host doesn't yet support `/plugin marketplace`, use this fallback.
 
 The [`skills`](https://github.com/vercel-labs/skills) CLI installs skills to 45+ AI tools with one command.
 
@@ -200,6 +210,8 @@ npx skills list
 The update overwrites only the files inside `.claude/skills/<name>/` or `.agents/skills/<name>/`. Your local workflow data — `.mino/briefs/`, `.mino/run.lock`, GitHub issues, and event comments — is untouched.
 
 Protocol upgrades are designed to be backward compatible at minor versions: state machines that are mid-flight when you update keep working without migration. Major-version bumps (e.g., `v2.0`) will document any required action at the top of this README.
+
+> v0.5.0 — Plugin marketplace support (`/plugin install mino@mino-skills`).
 
 ## Usage
 

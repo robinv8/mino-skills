@@ -2,7 +2,7 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.4.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.4.0)
+[![Version](https://img.shields.io/badge/release-v0.5.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.5.0)
 [![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.11-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
@@ -69,9 +69,19 @@ mino-skills/
 └── LICENSE
 ```
 
-## 安装
+## 安装（Plugin Marketplace，推荐）
 
-### 使用 `skills` CLI（推荐）
+支持的 host：Copilot CLI、Claude Code、Cursor。
+
+```bash
+/plugin marketplace add robinv8/mino-skills
+/plugin install mino@mino-skills
+/plugin update mino@mino-skills    # 后续升级 —— 终于丝滑了
+```
+
+## 安装（备选 —— vercel-labs CLI）
+
+如果你的 agent host 尚不支持 `/plugin marketplace`，使用此备选方案。
 
 [`skills`](https://github.com/vercel-labs/skills) CLI 通过一条命令将技能安装到 45+ 款 AI 工具中。
 
@@ -200,6 +210,8 @@ npx skills list
 更新只会覆盖 `.claude/skills/<name>/` 或 `.agents/skills/<name>/` 内的文件。你的本地工作流数据 —— `.mino/briefs/`、`.mino/run.lock`、GitHub issue 和 event comment —— 完全不会被动到。
 
 协议小版本升级保证向后兼容：升级时正在运行的状态机不需要迁移。大版本升级（如 `v2.0`）如有破坏性变更，会在 README 顶部写明迁移步骤。
+
+> v0.5.0 — 支持 Plugin marketplace（`/plugin install mino@mino-skills`）。
 
 ## 使用
 
