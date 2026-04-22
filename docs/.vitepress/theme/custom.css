@@ -18,11 +18,11 @@
     --vp-c-brand-3: #3b82f6;
     --vp-c-brand-soft: #eff6ff;
 
-    /* Semantic — mapped from logo accent colors */
-    --mino-c-success: #84cc16;
-    --mino-c-warning: #f59e0b;
-    --mino-c-error:   #ef4444;
-    --mino-c-info:    #06b6d4;
+    /* Semantic — safe for text on white (all ≥ 4.5:1) */
+    --mino-c-success: #4d7c0f;
+    --mino-c-warning: #b45309;
+    --mino-c-error:   #dc2626;
+    --mino-c-info:    #0e7490;
 
     /* Neutral scale for text hierarchy */
     --mino-c-text-primary:   #0f172a;
@@ -57,6 +57,11 @@
     --mino-c-bg-elevated: #1e293b;
     --mino-c-bg-subtle:   #0f172a;
     --mino-c-bg-surface:  #1e293b;
+
+    /* Dark mode: lighter brand for AA contrast on elevated surfaces */
+    --vp-c-brand-1: #3b82f6;
+    --vp-c-brand-2: #2563eb;
+    --vp-c-brand-3: #60a5fa;
 }
 
 /* -----------------------------------------------------------
@@ -186,7 +191,7 @@
     border-radius: 10px;
     font-weight: 600;
     letter-spacing: 0.01em;
-    padding: 0.625rem 1.75rem;
+    padding: 0.75rem 1.75rem;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -232,7 +237,7 @@
     background: var(--mino-c-bg-elevated);
     border: 1px solid #e2e8f0;
     border-radius: 16px;
-    padding: 1.75rem;
+    padding: 1.5rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -259,7 +264,7 @@
     min-width: 40px;
     min-height: 40px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    background: #dbeafe;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -269,7 +274,7 @@
 }
 
 .dark .VPFeatures .icon {
-    background: linear-gradient(135deg, #1e3a5f, #1e40af);
+    background: #1e3a8a;
 }
 
 .VPFeatures .title {
@@ -351,7 +356,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--mino-c-text-tertiary);
+    color: var(--mino-c-text-secondary);
 }
 
 .VPSidebar .VPSidebarItem.is-link .link:hover .text {
@@ -522,5 +527,5 @@
 .VPFooter .message,
 .VPFooter .copyright {
     font-size: 0.8125rem;
-    color: var(--mino-c-text-tertiary);
+    color: var(--mino-c-text-secondary);
 }
