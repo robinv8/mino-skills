@@ -6,7 +6,7 @@ hero:
   text: Task-Driven Development
   tagline: Turn a Markdown spec into executed, verified code — regardless of which AI agent you use.
   image:
-    src: /logo.svg
+    src: /logo.png
     alt: Mino Skills
   actions:
     - theme: brand

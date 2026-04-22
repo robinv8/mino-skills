@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/public/logo.png" alt="Mino Skills" width="240">
+</p>
+
 **English** | [简体中文](README.zh.md)
 
 # Mino Skills
