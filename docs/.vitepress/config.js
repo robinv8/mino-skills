@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
     title: 'Mino Skills',
     description: 'Agent Skills compatible skill pack for task-driven development',
+    base: '/mino-skills/',
     cleanUrls: true,
 
     head: [
