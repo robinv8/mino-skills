@@ -199,7 +199,7 @@ Only one event is terminal:
 
 - `checkup_done`
 
-Its comment is a consolidated summary that inlines every local event yml block for the active `approved_revision` in ascending `sequence` order. See `skills/checkup/templates/comment-checkup-summary.md.tmpl`. This is the sole GitHub-visible evidence for successfully completed work.
+Its comment is a consolidated summary that inlines every local event yml block for the active `approved_revision` in ascending `sequence` order. See `skills/mino-checkup/templates/comment-checkup-summary.md.tmpl`. This is the sole GitHub-visible evidence for successfully completed work.
 
 ## Back-Compatibility with Legacy Chains
 
@@ -227,7 +227,7 @@ When a task enters `Workflow Entry State: pending_acceptance`:
 
 - The detailed manual verification checklist lives in the local brief under `Manual Acceptance`
 - The linked issue should receive the label `pending-acceptance` for easy multi-user discovery
-- The linked issue should receive a short summary comment containing the reason and the action to run `/checkup accept issue-{N}`
+- The linked issue should receive a short summary comment containing the reason and the action to run `/mino-checkup accept issue-{N}`
 - The summary comment is for shared visibility; the detailed checklist remains local brief data
 
 When a task leaves `pending_acceptance` through `checkup accept`:

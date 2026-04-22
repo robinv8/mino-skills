@@ -151,9 +151,9 @@ Rationale: agent collaboration without these rules degenerates into a last-write
 
 ## Adopting Existing Issues
 
-The protocol's native entry point is `/task <spec.md>`, which posts `task_published` at sequence 1. Repositories that pre-existed the protocol have issues without this event; `run` / `verify` / `checkup` therefore refuse to operate on them.
+The protocol's native entry point is `/mino-task <spec.md>`, which posts `task_published` at sequence 1. Repositories that pre-existed the protocol have issues without this event; `run` / `verify` / `checkup` therefore refuse to operate on them.
 
-`/task adopt issue-N` is the standard on-ramp. It produces the **same shape of artifacts** as native publication so downstream skills cannot tell the difference:
+`/mino-task adopt issue-N` is the standard on-ramp. It produces the **same shape of artifacts** as native publication so downstream skills cannot tell the difference:
 
 - A local brief at `.mino/briefs/issue-{N}.md` (same template as native)
 - An event yml at `.mino/events/issue-{N}/0001-task-adopted.yml` with `event: task_adopted` and `sequence: 1`
@@ -163,7 +163,7 @@ Adoption events are **silent** in v1.10; no GitHub comment is posted. The local 
 
 ### Eligibility
 
-`/task adopt issue-N` accepts an issue iff:
+`/mino-task adopt issue-N` accepts an issue iff:
 
 1. The issue exists and is `OPEN` on the host repository
 2. The issue body does not declare more than `COMPOSITE_THRESHOLD = 3` open checkboxes (`- [ ]`); composite issues must be broken into child issues by the human first
@@ -198,7 +198,7 @@ If `iron-tree:adopted` already exists on the issue:
 
 | Transition | Performed by | Trigger |
 |---|---|---|
-| (none) → `stage:task` | `task` | `/task adopt` succeeds, or native `task` publishes |
+| (none) → `stage:task` | `task` | `/mino-task adopt` succeeds, or native `task` publishes |
 | `stage:task` → `stage:run` | `task` | User approval recorded |
 | `stage:run` → `stage:verify` | `run` | Step 7 commit succeeds (or `not_applicable` path) |
 | `stage:verify` → `stage:done` | `verify` | `verify_passed` recorded |
@@ -245,7 +245,7 @@ Two modes are defined. Both operate on the same state machine and produce identi
 
 ### Stepwise Mode (default)
 
-- A human invokes one skill at a time (`/task`, `/run`, `/verify`, `/checkup`)
+- A human invokes one skill at a time (`/mino-task`, `/mino-run`, `/mino-verify`, `/mino-checkup`)
 - Each skill performs exactly one transition and returns control to the human
 - The human decides what to invoke next based on the resulting state
 - This is the safe baseline; every skill must remain usable in stepwise mode
@@ -277,8 +277,8 @@ Halt conditions are evaluated **in the order listed**. The first matching condit
 |---|---|---|---|
 | 1 | `goal_reached` | Goal predicate satisfied | None; report success |
 | 2 | `fail_terminal` | Any in-scope task has `Pass/Fail Outcome: fail_terminal` | Human revises spec, code, or tooling |
-| 3 | `pending_acceptance` | Any in-scope task has `Workflow Entry State: pending_acceptance` | Human runs `/checkup accept` |
-| 4 | `reapproval_required` | Any in-scope task has `Spec Revision != Approved Revision` | Human re-approves via `/task` |
+| 3 | `pending_acceptance` | Any in-scope task has `Workflow Entry State: pending_acceptance` | Human runs `/mino-checkup accept` |
+| 4 | `reapproval_required` | Any in-scope task has `Spec Revision != Approved Revision` | Human re-approves via `/mino-task` |
 | 5 | `blocked` | Any in-scope task has `Workflow Entry State: blocked` **and** `Pass/Fail Outcome != fail_terminal` | Human investigates and resolves |
 | 6 | `protocol_gap` | The agent encounters a state not covered by the Core Loop or contract | Human extends the protocol |
 | 7 | `loop_budget_exhausted` | The configured maximum number of consecutive transitions is reached | Human inspects and decides whether to resume |
@@ -296,11 +296,11 @@ When halting, the agent must:
 Within a Loop Mode iteration, the agent selects the next action by evaluating in order:
 
 1. If any halt condition is true → halt
-2. If a task is in `Current Stage: run` with `Next Stage: verify` → invoke `/verify`
-3. If a task is in `Current Stage: verify` with `Pass/Fail Outcome: fail_retryable` and `Attempt Count <= Max Retry Count` → invoke `/run` (which performs its own pre-flight before scheduling)
-4. If a task is in `Current Stage: checkup` with `Next Stage: done` and `Completion Basis` set → invoke `/checkup finalize <issue>` to bind completion evidence and transition to `done`
-5. If all required children of an in-scope composite parent are `done` and the parent is not yet `done` → invoke `/checkup aggregate` on the parent
-6. If a DAG node has all `depends_on` `done` and `Workflow Entry State: ready_to_start` → invoke `/run` on the eligible node with the lowest `sequence` of last activity (deterministic tie-break)
+2. If a task is in `Current Stage: run` with `Next Stage: verify` → invoke `/mino-verify`
+3. If a task is in `Current Stage: verify` with `Pass/Fail Outcome: fail_retryable` and `Attempt Count <= Max Retry Count` → invoke `/mino-run` (which performs its own pre-flight before scheduling)
+4. If a task is in `Current Stage: checkup` with `Next Stage: done` and `Completion Basis` set → invoke `/mino-checkup finalize <issue>` to bind completion evidence and transition to `done`
+5. If all required children of an in-scope composite parent are `done` and the parent is not yet `done` → invoke `/mino-checkup aggregate` on the parent
+6. If a DAG node has all `depends_on` `done` and `Workflow Entry State: ready_to_start` → invoke `/mino-run` on the eligible node with the lowest `sequence` of last activity (deterministic tie-break)
 7. Otherwise → halt with `protocol_gap`
 
 Notes:

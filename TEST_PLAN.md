@@ -63,10 +63,10 @@ Each test record format:
 **Operation**:
 1. `cd ~/Projects/todo-list && git reset --hard v0-mino-baseline`
 2. Write `specs/auth-system.md`
-3. `/task specs/auth-system.md`
+3. `/mino-task specs/auth-system.md`
 4. Approve the generated DAG
-5. Run `/run issue-N` in sequence; each auto → `/verify` → `/checkup`
-6. After all sub-tasks done, `/checkup aggregate issue-1`
+5. Run `/mino-run issue-N` in sequence; each auto → `/mino-verify` → `/mino-checkup`
+6. After all sub-tasks done, `/mino-checkup aggregate issue-1`
 
 **Expected artifacts (protocol level)**:
 - [ ] Create 6 issues (1 parent + 5 children)
@@ -122,7 +122,7 @@ Each test record format:
 - Parent-child relation linked via brief Work Breakdown only, but GitHub issue body does not set `depends_on` ❌
 
 **Root cause**:
-1. Manual execution of `/task` → `/run` → `/verify` → `/checkup`, no skill automation generating standard-format briefs and structured issue comments
+1. Manual execution of `/mino-task` → `/mino-run` → `/mino-verify` → `/mino-checkup`, no skill automation generating standard-format briefs and structured issue comments
 2. `brief-contract.md` defined section structure incompatible with manually created `## Status` list
 3. GitHub API not used to set `depends_on` / parent-child links
 
@@ -182,9 +182,9 @@ Each test record format:
 #### TC-2.2 Uncommitted local changes in repo
 🌡️ **Real-world frequency: medium** — forgetting to stash when switching issues is a classic mistake.
 
-> ⚠️ **Protocol dependency**: Current `skills/run/SKILL.md` **does not define** dirty working tree pre-flight detection. This TC is **expected to fail** until that skill behavior is added; the failure itself is the conclusion. Fix direction is to add pre-flight rules to the run skill first, then re-run this TC.
+> ⚠️ **Protocol dependency**: Current `skills/mino-run/SKILL.md` **does not define** dirty working tree pre-flight detection. This TC is **expected to fail** until that skill behavior is added; the failure itself is the conclusion. Fix direction is to add pre-flight rules to the run skill first, then re-run this TC.
 
-**Scenario**: Before `/run issue-core`, README.md has uncommitted edits in the editor.
+**Scenario**: Before `/mino-run issue-core`, README.md has uncommitted edits in the editor.
 **Expected (target state)**: run pre-flight detects dirty working tree, either requires stash or auto-stashes + restores after completion, **must not let unrelated changes leak into the commit**.
 **Expected (current state, confirm before running)**: Protocol undefined → run executes directly → unrelated changes bundled into commit. This result should **trigger patching of the run skill**, not directly mark TC fail.
 
@@ -200,9 +200,9 @@ Each test record format:
 **Actual / Root cause / Fix**:
 
 #### TC-2.4 Skip dependency and execute downstream directly
-🌡️ **Real-world frequency: medium** — user forgets the order and directly `/run` a downstream issue.
+🌡️ **Real-world frequency: medium** — user forgets the order and directly `/mino-run` a downstream issue.
 
-**Scenario**: `auth-pages` depends on `auth-core`, but user runs `/run issue-pages` first.
+**Scenario**: `auth-pages` depends on `auth-core`, but user runs `/mino-run issue-pages` first.
 **Expected**: run detects dependency not done, rejects execution, prompts which to run first.
 
 **Actual / Root cause / Fix**:
@@ -220,7 +220,7 @@ Each test record format:
 - [ ] `Code Publication State` stays `local_only`
 - [ ] `Pass/Fail Outcome` not set
 - [ ] `Attempt Count` unchanged
-- [ ] Re-run `/verify issue-N` to retry publication, do not re-run tests
+- [ ] Re-run `/mino-verify issue-N` to retry publication, do not re-run tests
 
 **Actual / Root cause / Fix**:
 
@@ -247,7 +247,7 @@ Each test record format:
 #### TC-4.1 Publish fails during Accept
 🌡️ **Real-world frequency: low**
 
-**Scenario**: Task enters `pending_acceptance`, user `/checkup accept` but network drops.
+**Scenario**: Task enters `pending_acceptance`, user `/mino-checkup accept` but network drops.
 **Expected**: Do not record acceptance, all states unchanged, emit `checkup_accept_publication_failed` event, retry next time.
 
 **Actual / Root cause / Fix**:
@@ -255,7 +255,7 @@ Each test record format:
 #### TC-4.2 Mistakenly accept a task that should not be accepted
 🌡️ **Real-world frequency: medium** — hand slipped.
 
-**Scenario**: Execute `/checkup accept` on a task with `Current Stage: run`.
+**Scenario**: Execute `/mino-checkup accept` on a task with `Current Stage: run`.
 **Expected**: Reject execution, prompt that this task is not in `pending_acceptance`.
 
 **Actual / Root cause / Fix**:
@@ -263,7 +263,7 @@ Each test record format:
 #### TC-4.3 Aggregate parent before all children are done
 🌡️ **Real-world frequency: medium** — eager to close.
 
-**Scenario**: Parent `auth-system` still has 1 child task blocked; user runs `/checkup aggregate`.
+**Scenario**: Parent `auth-system` still has 1 child task blocked; user runs `/mino-checkup aggregate`.
 **Expected**: List incomplete child tasks, reject aggregation.
 
 **Actual / Root cause / Fix**:
@@ -285,7 +285,7 @@ Each test record format:
 
 **Scenario**: DAG already approved, 2 child tasks ran, then spec adds "password must contain numbers".
 **Expected**:
-- [ ] Re-`/task` detects `Spec Revision` change
+- [ ] Re-`/mino-task` detects `Spec Revision` change
 - [ ] Existing issue body shows `Spec Revision ≠ Approved Revision`
 - [ ] Mark `reapproval_required`
 - [ ] Do not auto-execute any run, wait for user re-approval
@@ -295,7 +295,7 @@ Each test record format:
 #### TC-5.2 Run the same spec twice
 🌡️ **Real-world frequency: high** — idempotency verification, misoperation.
 
-**Scenario**: `/task specs/auth-system.md` executed twice.
+**Scenario**: `/mino-task specs/auth-system.md` executed twice.
 **Expected**: Second run detects existing open issue with same Task Key, skips creation, brief not overwritten.
 
 **Actual / Root cause / Fix**:
@@ -318,7 +318,7 @@ Each test record format:
 #### TC-6.1 All briefs deleted, rebuild from scratch
 🌡️ **Real-world frequency: low, but severe when it happens** — machine swap, cache clear, accidental deletion.
 
-**Scenario**: After partial workflow completion (`auth-core` done, `auth-pages` running), `rm -rf .mino/briefs/*`, then `/checkup reconcile`.
+**Scenario**: After partial workflow completion (`auth-core` done, `auth-pages` running), `rm -rf .mino/briefs/*`, then `/mino-checkup reconcile`.
 **Expected**: Replay structured events from issue comments by sequence, rebuild all briefs, state fully recovered (including Attempt Count, both Revision fields).
 
 **Actual / Root cause / Fix**:
@@ -359,7 +359,7 @@ Each test record format:
 
 ### TC-7.2 Two runs executed in parallel
 **Why important**: Impacts concurrency model, but v1 can temporarily bypass with "explicitly prohibited".
-**Undefined**: Two terminals simultaneously `/run issue-A` and `/run issue-B`; how to handle?
+**Undefined**: Two terminals simultaneously `/mino-run issue-A` and `/mino-run issue-B`; how to handle?
 **Candidate solutions**:
 - A. v1 explicitly prohibits (**preference**: use `.mino/run.lock` file lock, simple and reversible)
 - B. Allow dependency-free tasks to run in parallel, with conflict detection

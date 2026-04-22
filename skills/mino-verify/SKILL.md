@@ -1,5 +1,5 @@
 ---
-name: verify
+name: mino-verify
 description: |
   Validate executed work against acceptance criteria and repository-native
   checks (build, test, lint). Produces pass/fail verdict with actionable
@@ -19,7 +19,7 @@ This skill consumes `run`'s output and feeds `checkup`. All structured artifacts
 
 - Identify the task being verified (issue number or task key from the user)
 - Load `.mino/briefs/issue-{N}.md` and the latest valid event sequence from the issue
-- Verify `Approved Revision == Spec Revision`; if not, halt and direct user to `/task` for re-approval
+- Verify `Approved Revision == Spec Revision`; if not, halt and direct user to `/mino-task` for re-approval
 
 ### Step 2: Anchor The Verification
 
@@ -27,7 +27,7 @@ Record `Verify Anchor SHA = git rev-parse HEAD` **before** running any check.
 
 This SHA is bound into every event and the verification summary. It guarantees the verdict refers to a specific committed state, not the current working tree.
 
-If `git status --porcelain` shows uncommitted changes at this point, halt and direct user back to `/run` — `verify` evaluates committed code only. (`run` is responsible for committing before handoff.)
+If `git status --porcelain` shows uncommitted changes at this point, halt and direct user back to `/mino-run` — `verify` evaluates committed code only. (`run` is responsible for committing before handoff.)
 
 ### Step 3: Select Verification Commands
 
@@ -199,7 +199,7 @@ Triggers:
    ```
    ⏸️ manual acceptance required — issue-{N}
    Reason: {one line}
-   Action: Run `/checkup accept issue-{N}` after completing the checklist (stored in the local brief).
+   Action: Run `/mino-checkup accept issue-{N}` after completing the checklist (stored in the local brief).
 
    Local events: `.mino/events/issue-{N}/`
 
@@ -227,7 +227,7 @@ This is reachable only from 6.A when `git push` (or any equivalent publication s
    ⚠️ verify publication failed — issue-{N}
    Checks passed at SHA {anchor}, but publication failed.
    Error: {short message}
-   Action: resolve push/auth issue, then re-run `/verify issue-{N}` (no retry budget consumed).
+   Action: resolve push/auth issue, then re-run `/mino-verify issue-{N}` (no retry budget consumed).
 
    Local events: `.mino/events/issue-{N}/`
 

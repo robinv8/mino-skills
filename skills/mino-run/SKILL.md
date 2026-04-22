@@ -1,5 +1,5 @@
 ---
-name: run
+name: mino-run
 description: |
   Advance an approved task DAG through execution. Reads local briefs,
   respects dependency order, runs code changes, commits them, and
@@ -27,14 +27,14 @@ This skill is the only writer of `.mino/run.lock` and the only place where `Atte
 Refuse to proceed and halt with a clear message if any of these are not true:
 
 - `Approval State: approved`
-- `Approved Revision == Spec Revision` (otherwise direct user to `/task` for re-approval)
+- `Approved Revision == Spec Revision` (otherwise direct user to `/mino-task` for re-approval)
 - `Executability: executable` (skip `container` tasks; they decompose, not execute)
 - `Workflow Entry State: ready_to_start`
 - All `Depends On` task keys are in `done` state
 
 ### Step 3: Pre-flight (Internal)
 
-Invoke `/checkup pre-flight issue-{N}` as a sub-step. If pre-flight marks the task `blocked`, do **not** proceed; let `checkup` own the `checkup_preflight_blocked` event and halt.
+Invoke `/mino-checkup pre-flight issue-{N}` as a sub-step. If pre-flight marks the task `blocked`, do **not** proceed; let `checkup` own the `checkup_preflight_blocked` event and halt.
 
 This step exists per Iron Tree Protocol § Required Capabilities and is referenced in § Decision Function notes — pre-flight is `run`'s internal gate, not a separate Loop Mode step.
 
@@ -126,7 +126,7 @@ Per protocol § Phase 4 and contract § run, commit failure must not consume ret
    ```
    ⚠️ run commit failed — issue-{N}
 
-   Action: resolve the commit issue (hook, identity, signing, …) and re-run `/run issue-{N}` (no retry budget consumed).
+   Action: resolve the commit issue (hook, identity, signing, …) and re-run `/mino-run issue-{N}` (no retry budget consumed).
 
    Local events: `.mino/events/issue-{N}/`
 
@@ -158,14 +158,14 @@ Label sync failure is a warning, not an error: log `stage_label_sync_failed: <re
 ### Step 9: Release Lock & Hand Off
 
 1. Remove `.mino/run.lock`.
-2. Print: `Run /verify issue-{N} to validate the commit.`
+2. Print: `Run /mino-verify issue-{N} to validate the commit.`
 
 ### Aggregate Handoff (special case)
 
 If the target task is composite/container and all required children are `done`, do **not** execute. Instead:
 
 - Skip Steps 4–8 (no lock, no commit, no run events)
-- Print: `All children of issue-{N} are done. Run /checkup aggregate issue-{N} to finalize the parent.`
+- Print: `All children of issue-{N} are done. Run /mino-checkup aggregate issue-{N} to finalize the parent.`
 
 ### Stop Conditions
 

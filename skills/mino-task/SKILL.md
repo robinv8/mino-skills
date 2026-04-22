@@ -1,11 +1,11 @@
 ---
-name: task
+name: mino-task
 description: |
   Convert a local Markdown requirement document into an execution DAG.
   Read a spec or bug note, extract tasks with dependencies, classify them,
   and prepare GitHub issues + local briefs. Always asks for approval
   before creating anything. Use when starting new work from a Markdown doc,
-  or use `/task adopt issue-N` to standardize an existing GitHub issue.
+  or use `/mino-task adopt issue-N` to standardize an existing GitHub issue.
 ---
 
 # Task Intake Engine
@@ -16,7 +16,7 @@ This skill is the protocol's entry point. Its outputs (issue body, local brief, 
 
 ## Adopt Mode
 
-When the user invokes `/task adopt issue-N` (instead of `/task <path-to-spec.md>`), branch into Adopt Mode. This mode produces artifacts shape-compatible with native publication, then rejoins the standard flow at the approval gate.
+When the user invokes `/mino-task adopt issue-N` (instead of `/mino-task <path-to-spec.md>`), branch into Adopt Mode. This mode produces artifacts shape-compatible with native publication, then rejoins the standard flow at the approval gate.
 
 ### Adopt-Step 1: Pre-flight
 
@@ -41,7 +41,7 @@ gh issue view {N} --json number,state,title,body,labels,url
 Refuse with explicit error message if any of these hold:
 
 - `state != "OPEN"` → `Issue #{N} is {state}; only OPEN issues can be adopted.`
-- body contains `≥ COMPOSITE_THRESHOLD (=3)` lines matching regex `^\s*-\s*\[\s\]` → composite. Run `gh issue edit {N} --add-label "iron-tree:needs-breakdown"` and halt with: `Issue #{N} appears composite ({k} open checkboxes). Split it into child issues, then run \`/task adopt\` on each child.`
+- body contains `≥ COMPOSITE_THRESHOLD (=3)` lines matching regex `^\s*-\s*\[\s\]` → composite. Run `gh issue edit {N} --add-label "iron-tree:needs-breakdown"` and halt with: `Issue #{N} appears composite ({k} open checkboxes). Split it into child issues, then run \`/mino-task adopt\` on each child.`
 
 ### Adopt-Step 3: Detect re-adopt
 
@@ -83,7 +83,7 @@ On approval (`yes`), before exiting Adopt-Step 5, run `gh issue edit {N} --remov
 
 ### Adopt-Step 6: Standardize & render brief
 
-Treat the issue as a PRD-equivalent input. Reuse the same extraction reasoning the native `/task <spec>` flow applies to a PRD `.md` file — the resulting brief MUST be indistinguishable in field-filling pattern from a native publish.
+Treat the issue as a PRD-equivalent input. Reuse the same extraction reasoning the native `/mino-task <spec>` flow applies to a PRD `.md` file — the resulting brief MUST be indistinguishable in field-filling pattern from a native publish.
 
 **Inputs to consider** (in priority order):
 1. Issue body (primary PRD text)
@@ -96,7 +96,7 @@ Treat the issue as a PRD-equivalent input. Reuse the same extraction reasoning t
 - `task_key`, `issue_number`, `github_url`, `spec_revision` — as before
 - `parent_issue_url_or_none` ← `none`
 - `type` ← infer: `bug` if labels match `/^(bug|defect|fix|regression)$/i` OR if body describes a defect (reproduction steps + expected vs actual); else `feature`
-- `shape` ← `atomic` (composite was refused in Step 2; if you discover during extraction that the issue actually contains multiple unrelated work items, halt and instruct the user to either split the issue manually or invoke `/task adopt issue-N --force-atomic` to merge them)
+- `shape` ← `atomic` (composite was refused in Step 2; if you discover during extraction that the issue actually contains multiple unrelated work items, halt and instruct the user to either split the issue manually or invoke `/mino-task adopt issue-N --force-atomic` to merge them)
 - `executability` ← `executable`
 - `depends_on_task_keys_or_none` ← `none` (cross-issue dependency discovery is out of scope for adopt)
 - `acceptance_criteria_checklist` ← **structured extraction**, not verbatim. Produce a markdown checklist (`- [ ] ...` lines) of testable outcomes derived from the issue body and qualifying comments. Each item MUST be a verifiable statement (e.g. `- [ ] Calling foo() with null returns NullPointerException with message "x"`), not a paraphrase of feelings (e.g. `- [ ] Fix the bug`). If the issue is too vague to yield ≥1 testable item, write a single line `- [ ] _(insufficient detail — see Open Questions)_` and populate `Open Questions / Warnings` with the specific gaps.
@@ -143,7 +143,7 @@ Label-edit failures are warnings, not errors — log `stage_label_sync_failed: <
 
 ```
 Adopted #{N} as {task_key} (revision {spec_revision}, mode {adopted|re_adopted}).
-Run `/run issue-{N}` to start.
+Run `/mino-run issue-{N}` to start.
 ```
 
 After Adopt Mode finishes, control returns to the user. Adopt Mode does **not** fall through to native Step 1–6.
@@ -251,11 +251,11 @@ After approval, for each task in dependency order:
 6. **Handle local event write failure** — if step 5 fails (filesystem error, permission):
    - Do NOT roll back the created issue or brief.
    - Mark this task in the publish report as `local_event_write_failed` and print the exact filesystem error.
-   - The user must resolve the write failure and manually re-invoke `/task <spec>` (idempotent — task_key resolves to the existing issue, only the event file is re-created).
+   - The user must resolve the write failure and manually re-invoke `/mino-task <spec>` (idempotent — task_key resolves to the existing issue, only the event file is re-created).
 
 7. **Sync stage label** — `gh issue edit {N} --add-label "stage:task"` (idempotent).
 
-   For native publishes the issue starts at `stage:task`; transition to `stage:run` happens when the user approves and `/run` is invoked. (Approval-time label flip: when `task` records the user's `yes`, before exiting Step 5, run `gh issue edit {N} --remove-label "stage:task" --add-label "stage:run"` for each newly-approved task. Failures here are warnings, not errors. Label sync is not an event and does not write a local yml.)
+   For native publishes the issue starts at `stage:task`; transition to `stage:run` happens when the user approves and `/mino-run` is invoked. (Approval-time label flip: when `task` records the user's `yes`, before exiting Step 5, run `gh issue edit {N} --remove-label "stage:task" --add-label "stage:run"` for each newly-approved task. Failures here are warnings, not errors. Label sync is not an event and does not write a local yml.)
 
 ### Step 6: Report
 
@@ -270,7 +270,7 @@ Summarize the publish results in a single table-shaped block:
 
 Conclude with the next-step hint:
 
-> "Run `/run issue-{N}` to start the first ready task: `{task-key}`."
+> "Run `/mino-run issue-{N}` to start the first ready task: `{task-key}`."
 
 Pick `{N}` as the lowest-numbered issue whose `Workflow Entry State: ready_to_start` and whose `Depends On` is `none`.
 

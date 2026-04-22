@@ -1,5 +1,5 @@
 ---
-name: checkup
+name: mino-checkup
 description: |
   Diagnose and repair workflow health, finalize tasks, record manual acceptance,
   aggregate composite parents, and reconcile out-of-band activity. Drives every
@@ -15,7 +15,7 @@ Diagnose environment readiness, skill wiring, brief freshness, and source-task a
 
 The user may specify a mode. Default is `check`.
 
-- `pre-flight <issue>` — validate environment for one task before `/run` executes. Halts on broken environment, never advances state.
+- `pre-flight <issue>` — validate environment for one task before `/mino-run` executes. Halts on broken environment, never advances state.
 - `check` — read-only inspection of `.mino/`, skill ecosystem, briefs. No mutation.
 - `repair` — fix missing wiring and auto-repairable issues (re-create missing dirs, refresh stale brief metadata).
 - `reconcile [<issue>]` — compare local briefs against source tasks; replay valid events to rebuild brief state; detect external close.
@@ -25,20 +25,20 @@ The user may specify a mode. Default is `check`.
 
 ## Pre-flight gate
 
-`pre-flight` is a stable interface called by `/run` before it acquires the lock. It is the only mode that must never mutate state beyond writing one structured event when blocking.
+`pre-flight` is a stable interface called by `/mino-run` before it acquires the lock. It is the only mode that must never mutate state beyond writing one structured event when blocking.
 
 Steps:
 
 1. Confirm `.mino/` and `.mino/briefs/` exist; `gh` is authenticated; the brief for `<issue>` exists and is well-formed.
 2. **Working tree cleanliness** — the workflow commits via `git add -A -- ':!.mino/briefs/' ':!.mino/locks/' ':!.mino/run.lock'`. Any pre-existing uncommitted change outside that allow-list would be silently bundled into the run commit. Treat as blocking:
    - Run `git status --porcelain -- ':!.mino/briefs/' ':!.mino/locks/' ':!.mino/run.lock'`.
-   - If non-empty, the environment is broken: list the offending paths and tell the user to commit, stash, or revert them before re-running `/run`.
+   - If non-empty, the environment is broken: list the offending paths and tell the user to commit, stash, or revert them before re-running `/mino-run`.
 3. Run task-specific dependency checks (e.g. `node_modules` present, toolchain available, secrets present).
 4. If everything is healthy, print `pre-flight ok issue-{N}` and exit 0. Do NOT post any comment or modify any file.
 5. If something is broken:
    - Set `Workflow Entry State: blocked` in the brief.
    - Render `templates/event-checkup-preflight-blocked.yml.tmpl` with the next sequence number and post it as an issue comment. Set the `blocking_check` placeholder to a short kebab-case identifier (e.g. `dirty-working-tree`, `gh-not-authenticated`, `missing-dependency`) so downstream consumers can distinguish causes.
-   - Exit non-zero so `/run` halts before acquiring the lock.
+   - Exit non-zero so `/mino-run` halts before acquiring the lock.
 
 ## Check / Repair
 
@@ -73,11 +73,11 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - **Sequence gap detection**: list the `sequence` values of every parsed event. If they are not a contiguous run starting at `1`, treat the gaps as missing canonical evidence:
      - Replay events up to the highest contiguous sequence (`max(sequences) such that 1..max are all present`); ignore events past the first gap because their state assumes evidence that no longer exists.
      - Render `templates/event-checkup-reconcile-sequence-gap.yml.tmpl` with `found_sequences`, `missing_sequences`, and `highest_replayable_sequence`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-sequence-gap.yml`, then post as an audible comment including `Local events: \`.mino/events/issue-{N}/\`` above the yml block so the warning itself does not introduce a further gap.
-     - Do NOT advance the workflow past `Workflow Entry State: blocked` until the operator reviews the gap (e.g. recovers the deleted comment, or runs `/task` to re-publish a fresh `approved_revision`).
+     - Do NOT advance the workflow past `Workflow Entry State: blocked` until the operator reviews the gap (e.g. recovers the deleted comment, or runs `/mino-task` to re-publish a fresh `approved_revision`).
    - Replay events in ascending `sequence` order to rebuild the canonical workflow state. Surgically replace `Workflow State`, `Pass/Fail Outcome`, and `Completion Handoff` sections from the resulting state. Never overwrite `Open Questions / Warnings`.
    - **External close detection**: if the source issue is `closed` but no `checkup_done` event exists for the active approved revision:
      - Set `Workflow Entry State: blocked` in the brief.
-     - Render `templates/brief-section-external-event.md.tmpl` (event=`issue_closed`, source=`github`, action=`Investigate the close reason and either re-open the issue with /task or accept the close as final`) and surgically replace the `External Event` section.
+     - Render `templates/brief-section-external-event.md.tmpl` (event=`issue_closed`, source=`github`, action=`Investigate the close reason and either re-open the issue with /mino-task or accept the close as final`) and surgically replace the `External Event` section.
      - Render `templates/event-checkup-reconcile-external-close.yml.tmpl`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-external-close.yml`, then post as an audible comment including `Local events: \`.mino/events/issue-{N}/\`` above the yml block.
      - Do NOT mark the task `done`. Do NOT auto-sync brief to a completed state.
 4. Emit a `Pending Acceptance` subsection in the report listing every task still in `pending_acceptance` with the next manual action.
@@ -146,7 +146,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - Sort by filename (sequence prefix)
    - Concatenate each file's content (narrative + yml block + trailing newline) with `--- sequence {N} · {event} ---` separators, producing `events_inline_yaml_blocks`
    - Render the template, post as a single `gh issue comment {N} --body-file <rendered>` call
-   - If the comment post fails: log `comment_post_failed: <reason>` in the report, do NOT retry automatically (the user can re-run `/checkup issue-{N}` which is idempotent). The local events are authoritative regardless.
+   - If the comment post fails: log `comment_post_failed: <reason>` in the report, do NOT retry automatically (the user can re-run `/mino-checkup issue-{N}` which is idempotent). The local events are authoritative regardless.
 4. Issue closure:
    - If brief `Close On Done: auto` and the issue is still open: `gh issue close {N} --reason completed`.
    - If `Close On Done: manual`: leave the issue open and post:
