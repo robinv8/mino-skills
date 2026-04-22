@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.11
+> Version: 1.12
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -133,14 +133,16 @@ Each workflow event has two persistence targets:
 2. **GitHub issue comment** — a mirror / notification channel, governed by the event's category:
 
    - **silent** events: do not post any comment. The local yml is the complete record.
-   - **audible** events: post an independent comment with human narrative + the yml block, so humans see halt / failure signals without polling the local filesystem.
-   - **terminal** events (`checkup_done`): post a single consolidated summary comment that inlines every local event's yml block for the active `approved_revision`, in `sequence` order. This makes GitHub a self-contained replay source even if the local log is later lost.
+   - **audible** events: post an independent comment with human narrative only (heading + Reason + Action). The yml block is written to the local event file and not echoed to GitHub.
+   - **terminal** events (`checkup_done`): post a short completion notice (heading + Completion Basis / Code Ref / Code Publication State). The notice is a notification only; recovery from a lost local log is not supported via GitHub under v1.12.
 
 `workflow-state-contract.md` § Event Categories lists exact assignments.
 
 Comment posting is always best-effort and non-fatal. On failure, the skill logs `comment_post_failed: <reason>` in its own report and continues. The local yml remains correct.
 
-`checkup reconcile` reads **local events first**, falls back to the terminal summary comment for `done` issues, and only falls back to per-event comments for pre-v1.10 (legacy v1.9 or earlier) issues.
+`checkup reconcile` reads **local events first**, falls back to the terminal summary comment for `done` issues (legacy fallback — issues completed under protocol v1.10 or v1.11 had inline YAML in the done comment; v1.12+ done comments contain no YAML and are not parseable as a recovery source. Try this fallback only when the comment matches the pre-v1.12 signature), and only falls back to per-event comments for pre-v1.10 (legacy v1.9 or earlier) issues.
+
+Under protocol v1.12, the only recovery source is the local event log at `.mino/events/issue-{N}/`. Operators must back up `.mino/` themselves (sync, commit to a private branch, etc.). Future protocol versions may reintroduce a separate cloud durability layer; the GitHub issue stream is intentionally not used for that purpose.
 
 ## Multi-Agent Git Hygiene
 

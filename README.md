@@ -2,8 +2,8 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.5.1-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.5.1)
-[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.11-blue)](skills/references/iron-tree-protocol.md)
+[![Version](https://img.shields.io/badge/release-v0.5.2-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.5.2)
+[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.12-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
 
@@ -189,9 +189,9 @@ Iron Tree Protocol v1.10 treats local `.mino/events/issue-N/*.yml` as the single
 
 - Routine successful transitions (adopt, run, verify pass) are **silent** — no comment.
 - Halts / failures that require human action still post an immediate comment so you see the signal.
-- On completion, `/mino-checkup done` posts **one consolidated summary comment** inlining every event yml, so the workflow can be replayed from GitHub alone if the local log is lost.
+- On completion, `/mino-checkup done` posts **one short completion notice** (heading + Completion Basis + Code Ref + Code Publication State) — no inline event log. The local `.mino/events/issue-{N}/` directory is the sole authoritative record; back it up yourself if you need durability.
 
-Pre-v1.10 issues (per-event comments) continue to be readable by `/mino-checkup reconcile` as a fallback source.
+Pre-v1.10 issues (per-event comments) continue to be readable by `/mino-checkup reconcile` as a fallback source. Issues completed under protocol v1.10–v1.11 still carry the legacy inline-YAML done comment; `/mino-checkup reconcile` falls back to that signature when the local log is missing. v1.12+ done comments contain no YAML.
 
 ## Update
 
@@ -211,6 +211,7 @@ The update overwrites only the files inside `.claude/skills/<name>/` or `.agents
 
 Protocol upgrades are designed to be backward compatible at minor versions: state machines that are mid-flight when you update keep working without migration. Major-version bumps (e.g., `v2.0`) will document any required action at the top of this README.
 
+> v0.5.2 — GitHub comments slimmed to human-readable notifications (no inline YAML, no `Local events:` pointer); commits use `[run] #{N}` so GitHub auto-links them on the issue timeline. Protocol bumped to v1.12 (policy change, schema unchanged).
 > v0.5.1 — Renamed slash commands to `/mino-task`, `/mino-run`, `/mino-verify`, `/mino-checkup` to avoid palette collisions.
 > v0.5.0 — Plugin marketplace support (`/plugin install mino@mino-skills`).
 

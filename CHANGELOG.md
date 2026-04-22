@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.2 (2026-04-22)
+
+GitHub-output policy change. **No schema changes.** Protocol bumped to **v1.12**.
+
+- **Comment hygiene** — all audible GitHub issue comments are now pure human-readable notifications (heading + `Reason:` + `Action:`). Removed the `Local events: .mino/events/issue-{N}/` pointer line and the inline rendered `iron_tree:` YAML block from every audible comment template.
+- **No more consolidated done comment** — `checkup_done` no longer posts the multi-block "consolidated summary" that inlined every event YAML in `sequence` order. The done comment is now a four-line notice (heading + Completion Basis + Code Ref + Code Publication State). Recovery from a lost local log via GitHub is no longer supported; the local `.mino/events/issue-{N}/*.yml` is the sole authoritative record. (Reconcile keeps a legacy fallback for issues completed under v1.10–v1.11.)
+- **Commit messages link the issue** — commit message format changed from `[run] issue-{N}: …` to `[run] #{N}: …`. GitHub now auto-creates a "mentioned this issue in commit X" event on the issue timeline. **No `Closes`/`Fixes`/`Resolves` keyword is used** — `mino-checkup` retains exclusive ownership of the `done` transition.
+- Updated `skills/mino-checkup/templates/comment-checkup-summary.md.tmpl`, four audible-comment specs in `skills/mino-verify/SKILL.md`, and the reconcile audible specs in `skills/mino-checkup/SKILL.md`.
+- Updated `README.md`, `README.zh.md`, `skills/references/iron-tree-protocol.md`, `skills/references/workflow-state-contract.md` to describe the new policy and the v1.12 protocol boundary.
+- No event log schema, brief schema, or `iron_tree:` field changes. Existing v0.5.1 briefs and event logs remain valid.
+
 ## v0.5.1 (2026-04-22)
 
 - **Renamed all 4 skills with `mino-` prefix** to prevent slash-command collisions in shared host palettes:

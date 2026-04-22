@@ -72,13 +72,13 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - If multiple sources are present and their event chains diverge (same sequence, different event), halt with `checkup_reconcile_sequence_gap_detected` and require human intervention.
    - **Sequence gap detection**: list the `sequence` values of every parsed event. If they are not a contiguous run starting at `1`, treat the gaps as missing canonical evidence:
      - Replay events up to the highest contiguous sequence (`max(sequences) such that 1..max are all present`); ignore events past the first gap because their state assumes evidence that no longer exists.
-     - Render `templates/event-checkup-reconcile-sequence-gap.yml.tmpl` with `found_sequences`, `missing_sequences`, and `highest_replayable_sequence`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-sequence-gap.yml`, then post as an audible comment including `Local events: \`.mino/events/issue-{N}/\`` above the yml block so the warning itself does not introduce a further gap.
+     - Render `templates/event-checkup-reconcile-sequence-gap.yml.tmpl` with `found_sequences`, `missing_sequences`, and `highest_replayable_sequence`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-sequence-gap.yml`, then post as a short audible comment (heading: `⚠️ checkup reconcile — sequence gap on #{N}`, plus a one-line description). Do NOT inline the YAML; the local event file is the authoritative record.
      - Do NOT advance the workflow past `Workflow Entry State: blocked` until the operator reviews the gap (e.g. recovers the deleted comment, or runs `/mino-task` to re-publish a fresh `approved_revision`).
    - Replay events in ascending `sequence` order to rebuild the canonical workflow state. Surgically replace `Workflow State`, `Pass/Fail Outcome`, and `Completion Handoff` sections from the resulting state. Never overwrite `Open Questions / Warnings`.
    - **External close detection**: if the source issue is `closed` but no `checkup_done` event exists for the active approved revision:
      - Set `Workflow Entry State: blocked` in the brief.
      - Render `templates/brief-section-external-event.md.tmpl` (event=`issue_closed`, source=`github`, action=`Investigate the close reason and either re-open the issue with /mino-task or accept the close as final`) and surgically replace the `External Event` section.
-     - Render `templates/event-checkup-reconcile-external-close.yml.tmpl`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-external-close.yml`, then post as an audible comment including `Local events: \`.mino/events/issue-{N}/\`` above the yml block.
+     - Render `templates/event-checkup-reconcile-external-close.yml.tmpl`, write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-reconcile-external-close.yml`, then post as a short audible comment (heading: `⚠️ external close detected — #{N}`, body: one sentence stating the action the operator must take). Do NOT inline the YAML.
      - Do NOT mark the task `done`. Do NOT auto-sync brief to a completed state.
 4. Emit a `Pending Acceptance` subsection in the report listing every task still in `pending_acceptance` with the next manual action.
 
@@ -93,7 +93,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
      git add -A -- ':!.mino/briefs/' ':!.mino/locks/' ':!.mino/run.lock'
      ```
    - If nothing is staged, skip to step 3 with `Code Ref: not_applicable`, `Code Publication State: not_applicable`.
-   - Otherwise commit with `[run] issue-{N}: {concise change summary}` and `git push`.
+   - Otherwise commit with `[run] #{N}: {concise change summary}` and `git push`.
    - Capture the resulting `HEAD` SHA as `Code Ref`. Set `Code Publication State: published`.
    - **On commit or push failure**: do NOT record acceptance. Keep `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`, `Code Publication State: local_only`. Render `templates/brief-section-publication-failure.md.tmpl` into the `Failure Context` section. Render `templates/event-checkup-accept-publication-failed.yml.tmpl` and post as comment. Stop.
 3. Render `templates/brief-section-acceptance-summary.md.tmpl` with reviewer name, ISO timestamp, code ref, and notes; surgically replace the `Verification Summary` section.

@@ -75,7 +75,7 @@ Choose exactly one of A–E. Each writes the brief **and** writes a local event 
 - 6.D `verify_pending_acceptance` → **audible**, post comment.
 - 6.E `verify_publication_failed` → **audible**, post comment.
 
-Every audible comment body must include the line `Local events: \`.mino/events/issue-{N}/\`` directly above the yml block, so reviewers know where the full log lives.
+Audible comment bodies are pure human notifications: short heading line, `Reason:`, and `Action:`. Do NOT include a `Local events:` pointer or any rendered YAML block — those exist in the local event file only. The local YAML at `.mino/events/issue-{N}/{seq:04d}-{event-kebab}.yml` is the authoritative log; the comment is a notification channel.
 
 No path stages or commits `.mino/briefs/`.
 
@@ -143,15 +143,11 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
 3. **Post comment** — narrative + rendered `templates/event-verify-failed-retryable.yml.tmpl`:
 
    ```
-   ❌ verify failed (retryable) — issue-{N} — attempt {n} / {max}
+   ❌ verify failed (retryable) — #{N} — attempt {n} / {max}
    Failed check: {command}
    {first 50 lines of error output}
    ... (truncated, full output in Failure Context)
    {last 20 lines of error output}
-
-   Local events: `.mino/events/issue-{N}/`
-
-   {render templates/event-verify-failed-retryable.yml.tmpl}
    ```
 
 #### 6.C Checks failed AND attempt budget exhausted (or unrecoverable)
@@ -167,14 +163,10 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
 2. **Post comment** — narrative + rendered `templates/event-verify-failed-terminal.yml.tmpl`:
 
    ```
-   🚫 verify failed (terminal) — issue-{N}
+   🚫 verify failed (terminal) — #{N}
    Reason: {budget exhausted | unrecoverable error class}
    Failed check: {command}
    {truncated output}
-
-   Local events: `.mino/events/issue-{N}/`
-
-   {render templates/event-verify-failed-terminal.yml.tmpl}
    ```
 
 #### 6.D Manual acceptance required
@@ -197,13 +189,9 @@ Triggers:
 3. **Post comment** — short summary + action + rendered `templates/event-verify-pending-acceptance.yml.tmpl`:
 
    ```
-   ⏸️ manual acceptance required — issue-{N}
+   ⏸️ manual acceptance required — #{N}
    Reason: {one line}
    Action: Run `/mino-checkup accept issue-{N}` after completing the checklist (stored in the local brief).
-
-   Local events: `.mino/events/issue-{N}/`
-
-   {render templates/event-verify-pending-acceptance.yml.tmpl}
    ```
 
 #### 6.E Publication failed (push or commit refused after checks passed)
@@ -224,14 +212,10 @@ This is reachable only from 6.A when `git push` (or any equivalent publication s
 4. **Post comment** — narrative + rendered `templates/event-verify-publication-failed.yml.tmpl`:
 
    ```
-   ⚠️ verify publication failed — issue-{N}
+   ⚠️ verify publication failed — #{N}
    Checks passed at SHA {anchor}, but publication failed.
    Error: {short message}
    Action: resolve push/auth issue, then re-run `/mino-verify issue-{N}` (no retry budget consumed).
-
-   Local events: `.mino/events/issue-{N}/`
-
-   {render templates/event-verify-publication-failed.yml.tmpl}
    ```
 
 ## Templates
@@ -263,7 +247,7 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 - Do NOT treat `gh issue edit` label-sync failures as fatal; the local event yml is authoritative.
 - Do NOT post a GitHub comment for `verify_passed` — silent in v1.10.
-- Do post audible comments for all other verify outcomes, prefixed with the `Local events: ...` pointer.
+- Do post audible comments for all other verify outcomes.
 
 ## References
 

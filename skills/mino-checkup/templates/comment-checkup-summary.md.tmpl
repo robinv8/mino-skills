@@ -1,11 +1,5 @@
-🏁 Issue {{ issue_number }} done — {{ task_key }}
+🏁 Issue #{{ issue_number }} done — {{ task_key }}
 
-Completion Basis: {{ completion_basis }}
-Code Ref: {{ code_ref_or_none }}
-Code Publication State: {{ code_publication_state }}
-
-Local events: `.mino/events/issue-{{ issue_number }}/`
-
-This issue has completed the Iron Tree workflow. The blocks below are the full event log for the active approved revision `{{ approved_revision }}`, inlined here so the workflow can be replayed from GitHub alone if the local log is lost.
-
-{{ events_inline_yaml_blocks }}
+- Completion Basis: {{ completion_basis }}
+- Code Ref: {{ code_ref_or_none }}
+- Code Publication State: {{ code_publication_state }}

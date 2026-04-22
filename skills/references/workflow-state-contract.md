@@ -185,13 +185,7 @@ These events demand human attention and post a comment with a human-readable nar
 - `checkup_reconcile_external_close_detected`
 - `checkup_reconcile_sequence_gap_detected`
 
-Every audible comment MUST include, directly above the yml block, the line:
-
-```
-Local events: `.mino/events/issue-{N}/`
-```
-
-so humans / other agents know where the full authoritative log lives.
+Audible comments are human notifications only: a one-line heading (`⚠️` / `⏸️` + event description + `#{N}`), an optional `Reason:` line, and an `Action:` line telling the operator what to do next. Do NOT inline the rendered YAML and do NOT include a `Local events:` pointer — the local file at `.mino/events/issue-{N}/{seq:04d}-{event-kebab}.yml` is the sole authoritative record. The GitHub comment is a notification channel; if it is lost, the local log is unaffected.
 
 ### Terminal (consolidated summary)
 
@@ -199,7 +193,7 @@ Only one event is terminal:
 
 - `checkup_done`
 
-Its comment is a consolidated summary that inlines every local event yml block for the active `approved_revision` in ascending `sequence` order. See `skills/mino-checkup/templates/comment-checkup-summary.md.tmpl`. This is the sole GitHub-visible evidence for successfully completed work.
+Its comment is a short, fixed-format completion notice: heading `🏁 Issue #{N} done — {task_key}`, plus three bullets (`Completion Basis`, `Code Ref`, `Code Publication State`). See `skills/mino-checkup/templates/comment-checkup-summary.md.tmpl`. The local event chain at `.mino/events/issue-{N}/*.yml` is the sole authoritative log; GitHub comments are a notification channel and are not used for replay.
 
 ## Back-Compatibility with Legacy Chains
 
@@ -278,7 +272,7 @@ The label is an index for querying pending tasks. It is not the authoritative wo
 ### checkup
 
 - `pre-flight` validates readiness and may mark `Workflow Entry State: blocked`, but must never write `done`
-- `accept` records human acceptance for a task in `pending_acceptance`, publishes any remaining code with the standard commit style `[run] issue-{N}: {concise change summary}` if needed, binds the acceptance to the published `code_ref`, posts the shared acceptance record to the issue, removes the `pending-acceptance` label, then transitions it to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: accepted`
+- `accept` records human acceptance for a task in `pending_acceptance`, publishes any remaining code with the standard commit style `[run] #{N}: {concise change summary}` if needed, binds the acceptance to the published `code_ref`, posts the shared acceptance record to the issue, removes the `pending-acceptance` label, then transitions it to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: accepted`
 - If publication fails during `accept`, do NOT record acceptance. Keep `Current Stage: verify`, `Next Stage: checkup`, `Workflow Entry State: pending_acceptance`, `Code Publication State: local_only`, leave `Pass/Fail Outcome` and `Completion Basis` unchanged, persist the publication error in `Failure Context`, post a short human-readable failure summary, emit `checkup_accept_publication_failed`, and do not advance to `done`
 - `aggregate` records aggregate completion for a `composite` / `container` task after all required children are `done`; it transitions the parent to `Current Stage: checkup`, `Next Stage: done`, `Workflow Entry State: ready_to_start`, `Pass/Fail Outcome: pass`, `Completion Basis: aggregated`
 - `reconcile` aligns the local brief with authoritative issue state by replaying the highest valid `sequence` for the active approved revision

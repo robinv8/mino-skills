@@ -98,10 +98,10 @@ Some tasks are research-only or update only `.mino/briefs/` content. If `git sta
 
 ```bash
 git add -A -- ':!.mino/briefs/' ':!.mino/locks/'
-git commit -m "[run] issue-{N}: {concise change summary}"
+git commit -m "[run] #{N}: {concise change summary}"
 ```
 
-The commit message format is fixed: `[run] issue-{N}: {summary}` where `{summary}` is one short imperative sentence.
+The commit message format is fixed: `[run] #{N}: {summary}` where `{N}` is the issue number (literal `#` so GitHub auto-links the commit on the issue timeline) and `{summary}` is one short imperative sentence. Do NOT add `Closes #{N}` / `Fixes #{N}` / `Resolves #{N}`: `mino-checkup` owns the `done` transition, not GitHub auto-close.
 
 If commit succeeds:
 
@@ -124,13 +124,9 @@ Per protocol § Phase 4 and contract § run, commit failure must not consume ret
 3. Render `templates/event-run-commit-failed.yml.tmpl`, write to `.mino/events/issue-{N}/{next_seq:04d}-run-commit-failed.yml`. Then post an issue comment with narrative + the same yml content (this event is **audible**). Comment body:
 
    ```
-   ⚠️ run commit failed — issue-{N}
+   ⚠️ run commit failed — #{N}
 
    Action: resolve the commit issue (hook, identity, signing, …) and re-run `/mino-run issue-{N}` (no retry budget consumed).
-
-   Local events: `.mino/events/issue-{N}/`
-
-   {render templates/event-run-commit-failed.yml.tmpl}
    ```
 4. Release `.mino/run.lock`. Halt.
 
@@ -205,7 +201,7 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 - Do NOT treat `gh issue edit` label-sync failures as fatal; the local event yml is authoritative.
 - Do NOT post a GitHub comment for `run_started` or `run_completed` — both are silent in v1.10.
-- Do post an audible comment for `run_commit_failed`, including the `Local events: ...` pointer line above the yml block.
+- Do post an audible comment for `run_commit_failed`.
 
 ## References
 
