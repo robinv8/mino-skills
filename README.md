@@ -275,6 +275,8 @@ Runs build, tests, linters. Results:
 
 ## The Iron Tree Protocol
 
+> **Etymology** — `Iron` for the iron-clad guarantees the protocol enforces (immutable event log, deterministic state machine, idempotent publish, audit-trail by construction); `Tree` for the data structure every workflow takes — a DAG of composite parents and child tasks linked by `depends_on`. Not a reference to *铁树开花*; the protocol is engineered, not miraculous.
+
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   task      │────▶│    run      │────▶│   verify    │

@@ -275,6 +275,8 @@ EOF
 
 ## Iron Tree Protocol
 
+> **名字由来** — `Iron`（铁）指协议提供的铁律保证：不可篡改的 event log、确定性状态机、幂等 publish、天然 audit trail；`Tree`（树）指每个工作流落地的数据结构 —— 由 composite parent 与子 task 通过 `depends_on` 连成的 DAG。**与"铁树开花"无关**；协议靠工程不靠奇迹。
+
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   task      │────▶│    run      │────▶│   verify    │

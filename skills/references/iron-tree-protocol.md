@@ -9,6 +9,13 @@ A human-approved requirement document unfolds into a fully implemented, verified
 
 The protocol shifts work from ad hoc prompting to a state-machine driven loop with explicit gates, durable metadata, revision-aware approval, and deterministic recovery.
 
+### Why "Iron Tree"
+
+- **Iron** — the protocol's guarantees are iron-clad by construction: an append-only local event log is the single source of truth, every transition is recorded as a templated YAML event, `Task Key` and `Spec Revision` are deterministic, and `verify` results bind to a `Verify Anchor SHA` so mid-flight code drift cannot silently invalidate them.
+- **Tree** — every workflow materialises as a DAG: composite parents decompose into children linked by `depends_on`, `checkup aggregate` rolls completion upward from leaves to root, and a single requirement document compiles to a tree of issues.
+
+The name is descriptive of the protocol's mechanics. It is **not** a reference to the Chinese idiom *铁树开花* ("iron-tree blooming") and carries no implication of rarity or miracle — the workflow is engineered to be repeatable.
+
 ## Core Loop
 
 ### Phase 1: Document Intake (`task`)
