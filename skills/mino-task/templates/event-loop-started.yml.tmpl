@@ -1,0 +1,10 @@
+loop:
+  version: 1
+  loop_id: {{ loop_id }}
+  sequence: 1
+  event: loop_started
+  goal_kind: {{ goal_kind }}
+  task_keys:
+{{ task_keys_yaml_list }}
+  budget_max_transitions: {{ budget_max_transitions }}
+  intent_hash: {{ intent_sha256_8 }}

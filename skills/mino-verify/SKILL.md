@@ -126,6 +126,8 @@ Label sync failure is a warning, not an error: log `stage_label_sync_failed: <re
 
 Do NOT post a GitHub comment for `verify_passed` — it is silent in v1.10. The local event file is the sole record at this stage.
 
+4. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed (the local event and brief updates are the hand-off signal).
+
 #### 6.B Checks failed AND attempt budget remains
 
 A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default `Max Retry Count: 3`, attempts 1/2/3 may yield `fail_retryable`; attempt 4 must be terminal.
@@ -150,6 +152,8 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
    {last 20 lines of error output}
    ```
 
+4. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
+
 #### 6.C Checks failed AND attempt budget exhausted (or unrecoverable)
 
 1. **Update brief sections**:
@@ -168,6 +172,8 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
    Failed check: {command}
    {truncated output}
    ```
+
+3. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
 #### 6.D Manual acceptance required
 
@@ -194,6 +200,8 @@ Triggers:
    Action: Run `/mino-checkup accept issue-{N}` after completing the checklist (stored in the local brief).
    ```
 
+4. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
+
 #### 6.E Publication failed (push or commit refused after checks passed)
 
 This is reachable only from 6.A when `git push` (or any equivalent publication step) fails after automated checks have already passed.
@@ -217,6 +225,8 @@ This is reachable only from 6.A when `git push` (or any equivalent publication s
    Error: {short message}
    Action: resolve push/auth issue, then re-run `/mino-verify issue-{N}` (no retry budget consumed).
    ```
+
+5. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
 ## Templates
 

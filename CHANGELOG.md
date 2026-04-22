@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.6.0 (2026-04-22)
+
+**Loop Mode by default.** Protocol bumped to **v1.13**. **BREAKING** behavior change.
+
+### Highlights
+
+- `/mino-task` is now the workflow's autonomous orchestrator. After approval, it drives `run` → `verify` → `checkup finalize` for every in-scope task without further human invocation, until one of the 7 protocol halt conditions fires.
+- New natural-language entry: `/mino-task PRD.md`, `/mino-task #123`, `/mino-task 修一下 #45 和 #47`, `/mino-task 前十条 issue`, `/mino-task 把所有 OPEN 的都跑完` all parse into a frozen task set + Loop authorization prompt.
+- New `/mino-task resume <loop_id>` sub-command for explicit halt resolution: `continue` / `skip <task_key>` (with dependency cascade) / `cancel`.
+- New `.mino/loops/{loop_id}.yml` Loop Entity holds authoritative goal, frozen task set, budget, status, halt reason. Loop-level events live at `.mino/loops/{loop_id}/events/`.
+- New repo-level lease `.mino/loops/active.lock` prevents concurrent Loops and stepwise interference. Stale leases are auto-detected (PID + 6h heartbeat) and cleaned on takeover.
+- New event types: `loop_started`, `loop_halted`, `loop_resumed`, `loop_completed`, `loop_cancelled`. Schema: `loop:` block (vs `iron_tree:` for issue events).
+- `mino-checkup`'s `finalize` sub-mode (already implemented in source) is now formally part of the Decision Function step 4 path. Comment-template inconsistency from v0.5.2 fixed in passing.
+
+### Halt semantics (read this if upgrading)
+
+Halts stop the **entire** Loop. Loop Mode never auto-skips an offending task. Skipping is a human act via `/mino-task resume <loop_id> skip <task_key>`. Skipped tasks recursively cancel their in-loop dependents.
+
+### Stepwise opt-out (no breakage)
+
+`/mino-run #N`, `/mino-verify #N`, `/mino-checkup ...` continue to work exactly as before when invoked directly. They detect orchestrator mode by the presence of `.mino/loops/active.lock` and switch to silent return only when an orchestrator holds the lease — direct invocation without an active Loop is unchanged.
+
+### Compatibility
+
+- Issue event schema (`iron_tree:`): unchanged.
+- Brief schema: `Halt Reason` field already existed (v1.10); no new brief fields. (The earlier draft proposal to add `Loop Goal` to briefs was rejected during design — Loop state lives in `.mino/loops/`.)
+- Commit message format: unchanged from v0.5.2 (`[run] #N: ...`).
+- Slash command names: unchanged from v0.5.1.
+- Existing Loops do not exist (this is the first Loop release), so no migration needed.
+
+### Documentation
+
+- `skills/references/iron-tree-protocol.md` v1.13: new § Loop Entity, new § Halt Semantics block, updated § Invariants. Removed the obsolete "finalize not yet implemented" caveat.
+- `skills/references/workflow-state-contract.md`: registered 5 loop_* event types with schemas. Clarified `Halt Reason` is a brief-side mirror; Loop Entity is authoritative.
+- `skills/mino-task/SKILL.md`: new § Intent Resolution, § Loop Driver, § Resume Mode at top. Existing Adopt Mode + native PRD flow kept as callable subroutines.
+
 ## v0.5.2 (2026-04-22)
 
 GitHub-output policy change. **No schema changes.** Protocol bumped to **v1.12**.

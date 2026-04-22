@@ -154,14 +154,16 @@ Label sync failure is a warning, not an error: log `stage_label_sync_failed: <re
 ### Step 9: Release Lock & Hand Off
 
 1. Remove `.mino/run.lock`.
-2. Print: `Run /mino-verify issue-{N} to validate the commit.`
+2. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently (the orchestrator will read the updated brief / events and dispatch the next step). Do NOT print the stepwise hand-off.
+3. **Stepwise mode** (no active orchestrator lease): print `Run /mino-verify issue-{N} to validate the commit.`
 
 ### Aggregate Handoff (special case)
 
 If the target task is composite/container and all required children are `done`, do **not** execute. Instead:
 
 - Skip Steps 4–8 (no lock, no commit, no run events)
-- Print: `All children of issue-{N} are done. Run /mino-checkup aggregate issue-{N} to finalize the parent.`
+- **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently.
+- **Stepwise mode**: print `All children of issue-{N} are done. Run /mino-checkup aggregate issue-{N} to finalize the parent.`
 
 ### Stop Conditions
 

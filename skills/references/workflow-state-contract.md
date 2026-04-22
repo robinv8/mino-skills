@@ -195,6 +195,29 @@ Only one event is terminal:
 
 Its comment is a short, fixed-format completion notice: heading `🏁 Issue #{N} done — {task_key}`, plus three bullets (`Completion Basis`, `Code Ref`, `Code Publication State`). See `skills/mino-checkup/templates/comment-checkup-summary.md.tmpl`. The local event chain at `.mino/events/issue-{N}/*.yml` is the sole authoritative log; GitHub comments are a notification channel and are not used for replay.
 
+## Loop Events
+
+Loop-level events use a `loop:` top-level block (instead of `iron_tree:`) and live at `.mino/loops/{loop_id}/events/{seq:04d}-{event-kebab}.yml`.
+
+- `loop_started` -- written when `/mino-task` enters Loop Mode after approval. Fields: `loop_id`, `goal_kind`, `task_keys`, `budget_max_transitions`, `intent_hash` (sha256 of normalized intent text).
+- `loop_halted` -- written when a halt condition fires. Fields: `loop_id`, `halt_reason` (one of the 7 protocol values), `halt_at_task_key`, `transitions_used`.
+- `loop_resumed` -- written when `/mino-task resume <loop_id> continue` re-enters the driver. Fields: `loop_id`, `previous_halt_reason`, `transitions_used`.
+- `loop_completed` -- written when every `task_key` reaches `done`. Fields: `loop_id`, `completed_at`, `transitions_used`.
+- `loop_cancelled` -- written on `cancel` (or on `skip <task_key>` for the cancelled task only). Fields: `loop_id`, `cancelled_at`, `cancellation_scope` (`loop` or `task`), `task_key` (when scope=task).
+
+All loop events share a top-level structure analogous to issue events but with `loop:` instead of `iron_tree:`:
+
+```yaml
+loop:
+  version: 1
+  loop_id: <id>
+  sequence: <int>          # monotonic within .mino/loops/{loop_id}/events/
+  event: loop_started
+  # event-specific fields below
+```
+
+Storage: `.mino/loops/{loop_id}/events/{seq:04d}-{event-kebab}.yml`.
+
 ## Back-Compatibility with Legacy Chains
 
 Issues completed under protocol ≤ v1.9 have per-event comments. `checkup reconcile` continues to accept them as a secondary source. v1.10 skills never emit new silent-category comments, so the corpus of per-event silent comments cannot grow after upgrade. Legacy chains must not be rewritten or squashed.
@@ -214,6 +237,8 @@ Allowed values:
 - `loop_budget_exhausted`
 
 `Halt Reason` is informational. It does not by itself permit any state transition; it records why automated execution stopped so a human can resume from a known point.
+
+When set on a brief, `Halt Reason` is a **diagnostic mirror** of the most recent `loop_halted` event for the affected task. The Loop Entity at `.mino/loops/{loop_id}.yml` is the authoritative record. Tools that need to discover whether a task is halted in a Loop must consult the Loop Entity, not the brief. The brief mirror exists so a human reading a single brief can see "this task is currently blocking loop X" without cross-referencing the loop registry.
 
 ## Pending Acceptance Coordination
 

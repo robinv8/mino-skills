@@ -1,18 +1,121 @@
 ---
 name: mino-task
 description: |
-  Convert a local Markdown requirement document into an execution DAG.
+  Convert a local Markdown requirement document into an execution DAG,
+  or act as the Loop orchestrator that drives an approved task set through
+  run, verify, and checkup autonomously until a halt condition fires.
   Read a spec or bug note, extract tasks with dependencies, classify them,
   and prepare GitHub issues + local briefs. Always asks for approval
-  before creating anything. Use when starting new work from a Markdown doc,
-  or use `/mino-task adopt issue-N` to standardize an existing GitHub issue.
+  before creating anything or entering Loop Mode. Use when starting new work
+  from a Markdown doc, adopting existing issues, or resuming a halted Loop.
 ---
 
 # Task Intake Engine
 
 Read a user-specified local Markdown requirement document, extract a Directed Acyclic Graph (DAG) of work items, classify each, and prepare them for execution — but only after explicit user approval.
 
-This skill is the protocol's entry point. Its outputs (issue body, local brief, structured event) are consumed by `run`, `verify`, and `checkup`. Field names, section names, and event schemas are **fixed by template files** in `templates/` so downstream skills can rely on them deterministically.
+This skill is the protocol's entry point and, as of v0.6.0, its **Loop orchestrator**. In addition to creating issues and briefs from a Markdown spec or adopting existing issues, `/mino-task` can drive the entire workflow autonomously after explicit Loop Mode approval. Its outputs (issue body, local brief, structured event, loop entity) are consumed by `run`, `verify`, and `checkup`. Field names, section names, and event schemas are **fixed by template files** in `templates/` so downstream skills can rely on them deterministically.
+
+## Intent Resolution
+
+`/mino-task` accepts a free-form text argument. Parse it into one of the following intents. **Resolve once, freeze the result, then proceed**; never re-query mid-Loop.
+
+| Pattern | Intent | Action |
+|---|---|---|
+| Empty argument | `none` | Print usage and halt. Do not enter Loop Mode. |
+| Argument matches `resume <loop_id>[ continue\|skip <task_key>\|cancel]` | `resume` | Branch to § Resume Mode. |
+| Argument matches `adopt issue-<N>` (legacy syntax) | `adopt_single` | Equivalent to `#<N>`; branch to § Adopt Mode then enter Loop with `goal_kind: task_done`. |
+| Argument is an existing file path ending in `.md` | `prd` | Branch to existing native PRD flow (Steps 1–6). After publish, enter Loop with `goal_kind: set_done` over the published `task_keys`. |
+| Argument contains exactly one `#<N>` token | `single_issue` | Branch to § Adopt Mode for that issue, then Loop with `task_done`. |
+| Argument contains multiple `#<N>` tokens | `multi_issue` | Adopt each in given order, then Loop with `set_done`. |
+| Argument matches a "前 N 条" / "first N" / "top N" pattern (any language) | `top_n` | Run the canonical query (see below). Loop with `set_done`. |
+| Argument matches an "all open / 所有 OPEN / 全部" pattern | `all_open` | Run the canonical query without limit. Loop with `set_done`. |
+| Anything else | `ambiguous` | Refuse with `Cannot infer intent from "{input}". Provide a path, one or more #<issue>, "前 N 条 issue", "all open", or use /mino-task adopt issue-<N>.` Do not guess. |
+
+**Canonical query** for `top_n` and `all_open`:
+
+```
+gh issue list --state open --label iron-tree:adopted --json number,title,body,labels --sort created --order asc [--limit <N>]
+```
+
+(adopted-only; sorted by issue number ascending = oldest first)
+
+For `top_n`, parse the integer N from the input. For `all_open`, omit `--limit`.
+
+### Resolved Plan & Approval
+
+After parsing, freeze the resolved task set. Print the **Resolved Plan** in this exact form:
+
+```
+You are authorizing Loop Mode to autonomously execute the following plan.
+
+Loop ID:        {loop_id}
+Goal:           {task_done | set_done}
+Intent:         {verbatim user input}
+Resolved query: {one-line summary or "n/a (file path)"}
+Tasks ({len}):  budget = {budget_max_transitions} transitions
+  1. #<N>  <title>  <task_key>
+  2. ...
+Excluded ({len}, see notes):
+  - #<N>  <reason: composite / closed / not adopted / etc>
+
+Halts on: approval-required, pending_acceptance, fail_terminal, blocked, reapproval_required, loop_budget_exhausted.
+Stepwise opt-out: invoke /mino-run, /mino-verify, /mino-checkup directly on a single issue instead.
+
+Approve and start Loop? (yes / edit / cancel)
+```
+
+`yes` is the **explicit Loop Mode opt-in** required by protocol § Invariants. Do NOT proceed without it. `edit` returns control to the user to refine input. `cancel` exits without acquiring the lease.
+
+## Loop Driver
+
+After approval and only after approval:
+
+1. **Acquire active lease** —
+   - Read `.mino/loops/active.lock` if present. If holder PID is alive AND `heartbeat_at` is within the last 6 hours, refuse with the error in protocol § Loop Entity. Do NOT take over.
+   - If the lock is stale (PID gone or heartbeat older than 6 hours): write a `loop_halted` event with `halt_reason: stale_takeover` against the previous Loop, set its status to `halted`, then continue.
+   - Render `templates/active-lock.yml.tmpl` with current PID and ISO timestamp; write to `.mino/loops/active.lock` atomically (write to a temp file, then rename).
+2. **Write Loop Entity** — generate `loop_id` (`{ISO-date}-{HHMM}-{6-hex-random}`); render `templates/loop.yml.tmpl`; write to `.mino/loops/{loop_id}.yml`.
+3. **Emit `loop_started`** — render `templates/event-loop-started.yml.tmpl`; write to `.mino/loops/{loop_id}/events/0001-loop-started.yml`.
+4. **Print** `Loop {loop_id} started; driving {len(task_keys)} task(s).`
+
+### Driver Iteration
+
+Repeat:
+
+1. **Heartbeat** — rewrite `active.lock` with current `heartbeat_at`.
+2. **Re-read authoritative state** — for each in-scope `task_key`: read its brief, scan its `.mino/events/issue-{N}/*.yml`, optionally `gh issue view` if external close suspected. The Loop Entity, briefs, and events together are the authoritative state — local cache is never trusted standalone.
+3. **Evaluate halt conditions** in protocol order (1–7). On any halt:
+   - Update Loop Entity: `status: halted`, `halt_reason`, `halt_at_task_key`, `halt_at_iso`, append to `transitions`.
+   - Render `templates/event-loop-halted.yml.tmpl`; write next sequence event under `.mino/loops/{loop_id}/events/`.
+   - Mirror `Halt Reason` onto the affected task's brief (single line, surgical edit; the brief field already exists per contract).
+   - Release the lease (`rm .mino/loops/active.lock`).
+   - Print: `Loop {loop_id} halted: {halt_reason} on {task_key}. Resume with: /mino-task resume {loop_id}`.
+   - Exit.
+4. **Evaluate Decision Function** (protocol L305, steps 2–6 — step 1 is the halt check above, step 7 is `protocol_gap` which ALSO halts).
+5. **Invoke the chosen skill in-process**: `/mino-run <issue>`, `/mino-verify <issue>`, or `/mino-checkup finalize <issue>`. The skill is loaded as a sub-task within the same agent session; you call it the same way a stepwise human would, then wait for it to return.
+6. **Increment** `budget_used`. If `budget_used >= budget_max_transitions`, halt with `loop_budget_exhausted`.
+7. **Append transition** to the Loop Entity `transitions:` array: `{iso, task_key, skill, outcome}`.
+8. **Re-iterate.**
+
+When all `task_keys` are `done`:
+- Update Loop Entity: `status: completed`, `completed_at`.
+- Render `templates/event-loop-completed.yml.tmpl`; write next sequence event.
+- Release the lease.
+- Print: `Loop {loop_id} completed: {N} task(s) done in {transitions_used} transition(s).`
+
+## Resume Mode
+
+`/mino-task resume <loop_id> [continue | skip <task_key> | cancel]`
+
+1. Read `.mino/loops/{loop_id}.yml`. If absent, halt with `Loop {loop_id} not found.`. If `status != halted`, halt with `Loop {loop_id} status is {status}; only halted loops can be resumed.`
+2. If no sub-action given: print the halt context (halt_reason, halt_at_task_key, remaining task_keys, dependency graph showing which would be cancelled if skip is chosen) and prompt for one of `continue / skip <task_key> / cancel`.
+3. Branch:
+   - **`continue`** — Re-acquire the lease (same rules as fresh start). Set status `running`. Render `templates/event-loop-resumed.yml.tmpl`; write next sequence event under `.mino/loops/{loop_id}/events/`. Re-enter Driver Iteration.
+   - **`skip <task_key>`** — Mark the named task as cancelled within the Loop. **Cascade**: any in-scope task that lists `<task_key>` (transitively) in its `depends_on` is also cancelled. Render `templates/event-loop-cancelled.yml.tmpl` for each cancelled task with `cancellation_scope: task`. Then re-acquire lease, status `running`, emit `loop_resumed`, re-enter Driver Iteration. The cancelled tasks are excluded from future halt-condition evaluation and from the goal-reached predicate.
+   - **`cancel`** — Set status `cancelled`. Render `templates/event-loop-cancelled.yml.tmpl` with `cancellation_scope: loop`. Do NOT re-acquire lease. Print: `Loop {loop_id} cancelled.`
+
+Skipping is the **only** way a task is excluded from a Loop. The driver itself never skips.
 
 ## Adopt Mode
 

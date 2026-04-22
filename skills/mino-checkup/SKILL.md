@@ -66,7 +66,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
 3. For each brief in scope:
    - Sources of truth, tried in order:
      1. **Local events** — glob `.mino/events/issue-{N}/*.yml`. Parse yml blocks, keep those whose `task_key` and `approved_revision` match the brief. This is the primary source.
-     2. **Terminal summary comment** (fallback for `done` issues when local log is missing) — pull all issue comments, pick the one whose body matches the summary template's signature (`🏁 Issue ... done` + `events_inline_yaml_blocks`), extract each inlined yml block.
+     2. **Terminal summary comment** (fallback for `done` issues when local log is missing, pre-v1.12 only) — pull all issue comments, pick the one whose body matches the pre-v1.12 signature (`🏁 Issue ... done` with inline YAML blocks). v1.12+ done comments are not parseable as a recovery source.
      3. **Legacy per-event comments** (fallback for pre-v1.10 issues) — pull issue comments, parse every yml event block directly.
    - If primary yields events, use only primary. Fallbacks are invoked only when primary is empty.
    - If multiple sources are present and their event chains diverge (same sequence, different event), halt with `checkup_reconcile_sequence_gap_detected` and require human intervention.
@@ -141,12 +141,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - `Next Stage: none`
 3. **Record `checkup_done` locally** — render `templates/event-checkup-done.yml.tmpl` with the bound `completion_basis`, `code_ref`, `code_publication_state`, and write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-done.yml`.
 
-4. **Post consolidated terminal summary comment** — render `templates/comment-checkup-summary.md.tmpl`:
-   - Scan `.mino/events/issue-{N}/` for all files matching `*.yml` whose `approved_revision` equals the task's current approved revision
-   - Sort by filename (sequence prefix)
-   - Concatenate each file's content (narrative + yml block + trailing newline) with `--- sequence {N} · {event} ---` separators, producing `events_inline_yaml_blocks`
-   - Render the template, post as a single `gh issue comment {N} --body-file <rendered>` call
-   - If the comment post fails: log `comment_post_failed: <reason>` in the report, do NOT retry automatically (the user can re-run `/mino-checkup issue-{N}` which is idempotent). The local events are authoritative regardless.
+4. **Post terminal completion notice** — render `templates/comment-checkup-summary.md.tmpl` (a short 4-line completion notice as of v0.5.2: title + Completion Basis + Code Ref + Code Publication State; no inline event log). Post via `gh issue comment {N} --body-file <rendered>`. If the comment post fails: log `comment_post_failed: <reason>` in the report, do NOT retry automatically. The local `.mino/events/issue-{N}/` log is authoritative regardless.
 4. Issue closure:
    - If brief `Close On Done: auto` and the issue is still open: `gh issue close {N} --reason completed`.
    - If `Close On Done: manual`: leave the issue open and post:
@@ -157,6 +152,8 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
      > gh issue close {N} --reason completed
      > ```
    - If the issue was already closed externally before finalize ran, do NOT re-open and do NOT re-close. Note the pre-existing closure in the report.
+
+5. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
 ## Sequence numbers
 

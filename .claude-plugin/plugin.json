@@ -1,7 +1,7 @@
 {
     "name": "mino",
     "description": "Iron Tree Protocol skills — mino-task / mino-run / mino-verify / mino-checkup for issue-driven multi-agent collaboration on GitHub repositories.",
-    "version": "0.5.2",
+    "version": "0.6.0",
     "author": { "name": "robinv8", "url": "https://github.com/robinv8" },
     "homepage": "https://github.com/robinv8/mino-skills",
     "repository": "https://github.com/robinv8/mino-skills",

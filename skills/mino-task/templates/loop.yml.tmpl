@@ -1,0 +1,16 @@
+loop_id: {{ loop_id }}
+created_at: {{ iso_timestamp }}
+goal_kind: {{ goal_kind }}
+intent: |
+{{ intent_indented }}
+resolved_query: |
+{{ resolved_query_indented }}
+task_keys:
+{{ task_keys_yaml_list }}
+budget_max_transitions: {{ budget_max_transitions }}
+budget_used: 0
+status: running
+halt_reason: null
+halt_at_task_key: null
+halt_at_iso: null
+transitions: []

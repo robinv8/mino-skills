@@ -1,0 +1,8 @@
+loop:
+  version: 1
+  loop_id: {{ loop_id }}
+  sequence: {{ sequence }}
+  event: loop_cancelled
+  cancelled_at: {{ iso_timestamp }}
+  cancellation_scope: {{ cancellation_scope }}
+  task_key: {{ task_key_or_null }}

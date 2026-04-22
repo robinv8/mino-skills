@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.12
+> Version: 1.13
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -300,6 +300,14 @@ When halting, the agent must:
 2. Set `Halt Reason` on the affected task's brief (see `workflow-state-contract.md`)
 3. Stop issuing further skill invocations until a human re-engages
 
+### Halt Semantics
+
+`Halt = entire Loop stops.` Loop Mode does **not** automatically skip the offending task and continue with the rest of the in-scope set, even when other tasks are unaffected. The protocol treats the halt conditions as full-loop circuit breakers because (a) the human is the only authority on whether the offending state is recoverable, ignorable, or fatal, and (b) silent per-task skipping would make resume semantics ambiguous.
+
+A human resumes a halted Loop via `/mino-task resume <loop_id>` and chooses explicitly: `continue` (re-evaluate halt; if the underlying state changed, proceed), `skip <task_key>` (mark that task `cancelled` in the loop, recursively cancel its DAG dependents within the loop, then continue with the rest), or `cancel` (the entire Loop transitions to `cancelled`).
+
+Skipping is a human act, never an autonomous one.
+
 ### Decision Function
 
 Within a Loop Mode iteration, the agent selects the next action by evaluating in order:
@@ -315,7 +323,7 @@ Within a Loop Mode iteration, the agent selects the next action by evaluating in
 Notes:
 
 - `pre-flight` is not a Decision Function step. The contract requires `run` to perform `checkup pre-flight` internally before scheduling work; Loop Mode relies on that internal call rather than scheduling pre-flight separately.
-- Step 4 requires a `finalize` mode on the `checkup` skill. This mode performs only the finalization sub-step (bind `code_ref`, write the terminal event, transition to `done`) and never performs `accept` or `aggregate` work; those remain explicit, separately invoked modes. Skills that have not yet implemented `finalize` are not Loop-Mode-ready for verify-pass paths and must remain in stepwise mode for those tasks.
+- Step 4 invokes `mino-checkup`'s `finalize` sub-mode, which performs only the finalization sub-step (bind `code_ref`, write the terminal event, transition to `done`) and never performs `accept` or `aggregate` work; those remain explicit, separately invoked modes. As of v1.13 this mode is implemented; see `skills/mino-checkup/SKILL.md` § Finalize.
 
 The decision function is intentionally narrow. New decision branches must be added to the protocol before any skill or agent uses them in Loop Mode.
 
@@ -325,9 +333,73 @@ The decision function is intentionally narrow. New decision branches must be add
 - Each invoked skill counts as one transition regardless of outcome
 - Reaching the budget halts with `loop_budget_exhausted`; this is a safety valve against runaway loops, not a verdict on the work
 
+### Loop Entity
+
+A Loop's authoritative state lives in `.mino/loops/{loop_id}.yml`. Briefs do **not** store the goal or the task set; they only mirror `Halt Reason` for diagnostic convenience.
+
+`loop_id` format: `{ISO date}-{HHMM}-{6-hex random}`, e.g. `2026-04-22-1432-a3f8b2`.
+
+Schema:
+
+```yaml
+loop_id: 2026-04-22-1432-a3f8b2
+created_at: 2026-04-22T14:32:11Z
+goal_kind: task_done | set_done
+intent: |
+  <verbatim user input that produced this loop, e.g. "前十条 issue">
+resolved_query: |
+  <the exact gh / file-path resolution applied at approval time, e.g.
+   "gh issue list --state open --label iron-tree:adopted --limit 10 --sort created --json number,title">
+task_keys:
+  - <task_key_1>
+  - <task_key_2>
+  # ...frozen at approval, never re-queried during the loop
+budget_max_transitions: <int>      # default max(50, 10 * len(task_keys))
+budget_used: 0
+status: running | halted | completed | cancelled
+halt_reason: null                  # populated when status=halted; one of the 7 protocol values
+halt_at_task_key: null             # which in-scope task triggered the halt
+halt_at_iso: null
+transitions:                       # append-only audit log
+  - {iso, task_key, skill, outcome}
+```
+
+`status` transitions:
+
+- `running` <- initial; `loop_started` written.
+- `running` -> `halted`: any halt condition fires; `loop_halted` written; `active.lock` released.
+- `halted` -> `running`: `/mino-task resume <loop_id> continue` re-acquires lock; `loop_resumed` written.
+- `halted` -> `cancelled`: `/mino-task resume <loop_id> cancel`; `loop_cancelled` written; loop is dead.
+- `running` -> `completed`: every `task_key` is `done`; `loop_completed` written; `active.lock` released.
+
+Loop-level events live at `.mino/loops/{loop_id}/events/{seq:04d}-{event-kebab}.yml`. They share no sequence space with per-issue events.
+
+### Active Lease
+
+`.mino/loops/active.lock` enforces single-Loop semantics at repo scope.
+
+Schema:
+
+```yaml
+loop_id: 2026-04-22-1432-a3f8b2
+holder_pid: 12345                  # process that acquired the lease
+holder_agent: mino-task            # always "mino-task" -- only the orchestrator holds the lease
+acquired_at: 2026-04-22T14:32:11Z
+heartbeat_at: 2026-04-22T14:33:00Z # refreshed at every transition
+```
+
+Acquisition rules:
+
+1. `/mino-task` (when not in resume mode) refuses to start a new Loop if `active.lock` exists AND the holder process is alive AND `heartbeat_at` is within the last `STALE_THRESHOLD` (default 6 hours). Error: `Loop {loop_id} already active (held by PID {pid}); run /mino-task resume {loop_id} or cancel it before starting a new one.`
+2. If the holder process is gone or `heartbeat_at` is older than `STALE_THRESHOLD`, the lock is **stale**. The new orchestrator may take over: write a `loop_halted` event with `halt_reason: stale_takeover` against the previous loop, mark it `halted`, then proceed.
+3. Stepwise commands (`/mino-run`, `/mino-verify`, `/mino-checkup`) **never** acquire the lease. They check for it: if present and `holder_agent: mino-task`, they detect orchestrator mode and return silently after their state write. If present but stale, they refuse with `stale loop lease detected; run /mino-task to clean up`.
+
 ### Invariants
 
 - Loop Mode never bypasses approval gates. Initial DAG approval still requires a human; only post-approval execution is automated.
 - Loop Mode never weakens `pending_acceptance`. Human acceptance always remains a required state transition for the affected task.
 - Loop Mode emits the same workflow events as stepwise mode. A reconciliation run cannot tell the two modes apart from event history alone, except for `loop_halted` and `loop_resumed` markers.
 - A skill that is not safe in stepwise mode is not safe in Loop Mode. There is no "Loop Mode only" capability.
+- A Loop holds the repo-level `.mino/loops/active.lock` lease for its entire `running` duration. The lease is released on halt, completion, or cancellation. Stepwise skill invocations check the lease and adapt their hand-off behavior (silent return when the orchestrator holds the lease) but never acquire it themselves.
+- The Loop Entity (`.mino/loops/{loop_id}.yml`) is the sole source of truth for goal, task set, budget, and status. Briefs may mirror `Halt Reason` for the most recent halt of a task, but mirror status only -- the Loop Entity is authoritative.
+- `/mino-task` approval is the per-goal Loop-Mode opt-in required by these invariants. The approval prompt MUST explicitly name the Loop Mode authorization and list the frozen task set; an implicit "yes" to a DAG preview without that text does not constitute valid Loop authorization.

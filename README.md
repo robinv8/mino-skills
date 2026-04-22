@@ -2,8 +2,8 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.5.2-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.5.2)
-[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.12-blue)](skills/references/iron-tree-protocol.md)
+[![Version](https://img.shields.io/badge/release-v0.6.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.6.0)
+[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.13-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
 
@@ -211,6 +211,7 @@ The update overwrites only the files inside `.claude/skills/<name>/` or `.agents
 
 Protocol upgrades are designed to be backward compatible at minor versions: state machines that are mid-flight when you update keep working without migration. Major-version bumps (e.g., `v2.0`) will document any required action at the top of this README.
 
+> v0.6.0 — **Loop Mode is now the default for /mino-task.** After approval, the orchestrator drives run/verify/checkup automatically until a halt condition fires (approval-required, pending_acceptance, fail_terminal, blocked, reapproval_required, loop_budget_exhausted). New /mino-task resume <loop_id> sub-command for explicit halt resolution. New .mino/loops/ directory holds Loop entity + repo-level lease. Stepwise opt-out: invoke /mino-run, /mino-verify, /mino-checkup directly. **BREAKING** behavior change.
 > v0.5.2 — GitHub comments slimmed to human-readable notifications (no inline YAML, no `Local events:` pointer); commits use `[run] #{N}` so GitHub auto-links them on the issue timeline. Protocol bumped to v1.12 (policy change, schema unchanged).
 > v0.5.1 — Renamed slash commands to `/mino-task`, `/mino-run`, `/mino-verify`, `/mino-checkup` to avoid palette collisions.
 > v0.5.0 — Plugin marketplace support (`/plugin install mino@mino-skills`).
