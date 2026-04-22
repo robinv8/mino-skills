@@ -8,3 +8,7 @@ specs/
 .DS_Store
 node_modules/
 *.log
+
+# VitePress build output
+docs/.vitepress/dist/
+docs/.vitepress/cache/
