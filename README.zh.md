@@ -2,8 +2,8 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.3.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.3.0)
-[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.10-blue)](skills/references/iron-tree-protocol.md)
+[![Version](https://img.shields.io/badge/release-v0.4.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.4.0)
+[![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.11-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
 
@@ -170,6 +170,8 @@ cat skills/task/SKILL.md
 | `stage:done` | verify 已通过 |
 
 Pull Request 不会被接管；它们像往常一样继续合并到 issue 上。
+
+**Brief 质量（v1.11+）**：adopt 生成的 brief 是结构化的，不是原文照搬。agent 从 issue body 和符合条件的评论中提取可测试的验收标准、推导出的验证步骤以及推断的目标文件 —— 与 `/task PRD.md` 生成的 brief 在字段填充模式上保持一致。GitHub 上的 issue body 永远不会被修改；标准化内容仅保存在 `.mino/briefs/issue-{N}.md` 中。
 
 ### Comment 策略（v1.10）
 
