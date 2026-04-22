@@ -1,0 +1,4 @@
+⚠️ verify publication failed — #{{ issue_number }}
+Reason: checks passed at SHA {{ verify_anchor_sha_short }} but `git push` failed.
+Action: resolve push/auth issue, then re-run `/mino-verify issue-{{ issue_number }}` (no retry budget consumed).
+{{ commit_link_or_empty }}

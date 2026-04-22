@@ -161,17 +161,11 @@ Brief updates use surgical section replacement; preserve `Open Questions / Warni
      - `Completion Basis: verified`
      - `Code Ref: {sha or not_applicable}`
 
-3. **Post comment to issue** — narrative + rendered `templates/event-verify-passed.yml.tmpl`:
-
-   ```
-   ✅ verify passed — issue-{N}
-   - Build: success
-   - Tests: {n} passed
-   - Lint: clean
-   - Code Ref: {sha or not_applicable}
-
-   {render templates/event-verify-passed.yml.tmpl}
-   ```
+3. **Do NOT post a GitHub comment** — `verify_passed` is silent in v1.10
+   and remains silent in v0.6.2. The local event yml at
+   `.mino/events/issue-{N}/{seq}-verify-passed.yml` is the sole record at
+   this stage. The eventual `checkup_done` comment will surface the
+   commit + docs links.
 
 After recording `verify_passed`, sync the GitHub stage label:
 
@@ -199,15 +193,9 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
 
 2. **Do NOT change `Attempt Count`.** Only `run` increments it.
 
-3. **Post comment** — narrative + rendered `templates/event-verify-failed-retryable.yml.tmpl`:
-
-   ```
-   ❌ verify failed (retryable) — #{N} — attempt {n} / {max}
-   Failed check: {command}
-   {first 50 lines of error output}
-   ... (truncated, full output in Failure Context)
-   {last 20 lines of error output}
-   ```
+3. **Post comment** — render `templates/comment-verify-failed-retryable.md.tmpl`.
+   The full error output lives in the brief `Failure Context` section, NOT
+   in the GitHub comment.
 
 4. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
@@ -221,14 +209,9 @@ A failure on attempt `N` is retryable when `N <= Max Retry Count`. With default 
      - `Workflow Entry State: blocked`
    - `Pass/Fail Outcome` ← `fail_terminal`
 
-2. **Post comment** — narrative + rendered `templates/event-verify-failed-terminal.yml.tmpl`:
-
-   ```
-   🚫 verify failed (terminal) — #{N}
-   Reason: {budget exhausted | unrecoverable error class}
-   Failed check: {command}
-   {truncated output}
-   ```
+2. **Post comment** — render `templates/comment-verify-failed-terminal.md.tmpl`.
+   Truncated output stays in the brief `Failure Context`; the comment links
+   to `Report:` if a report was authored in Step 5.5.
 
 3. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
@@ -250,14 +233,9 @@ Triggers:
 
 2. **Tag the issue** with the `pending-acceptance` label. Skip gracefully if the label is missing on this repo.
 
-3. **Post comment** — short summary + action + rendered `templates/event-verify-pending-acceptance.yml.tmpl`:
-
-   ```
-   ⏸️ manual acceptance required — #{N}
-   Reason: {one line}
-   Docs: {promoted_doc as github URL}    # only when promoted_doc is set (rare in 6.D)
-   Action: Run `/mino-checkup accept issue-{N}` after completing the checklist (stored in the local brief).
-   ```
+3. **Post comment** — render `templates/comment-verify-pending-acceptance.md.tmpl`.
+   The acceptance checklist itself stays in the brief `Manual Acceptance`
+   section, NOT in the GitHub comment.
 
 4. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
@@ -276,14 +254,7 @@ This is reachable only from 6.A when `git push` (or any equivalent publication s
 
 3. **Do NOT change `Attempt Count`.** Publication failure must not consume retry budget.
 
-4. **Post comment** — narrative + rendered `templates/event-verify-publication-failed.yml.tmpl`:
-
-   ```
-   ⚠️ verify publication failed — #{N}
-   Checks passed at SHA {anchor}, but publication failed.
-   Error: {short message}
-   Action: resolve push/auth issue, then re-run `/mino-verify issue-{N}` (no retry budget consumed).
-   ```
+4. **Post comment** — render `templates/comment-verify-publication-failed.md.tmpl`.
 
 5. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
@@ -296,6 +267,10 @@ All artifact shapes are externalized; `verify` MUST NOT generate freehand variat
 - `templates/event-verify-failed-terminal.yml.tmpl`
 - `templates/event-verify-publication-failed.yml.tmpl`
 - `templates/event-verify-pending-acceptance.yml.tmpl`
+- `templates/comment-verify-failed-retryable.md.tmpl`
+- `templates/comment-verify-failed-terminal.md.tmpl`
+- `templates/comment-verify-pending-acceptance.md.tmpl`
+- `templates/comment-verify-publication-failed.md.tmpl`
 - `templates/report.md.tmpl`
 - `templates/brief-section-verification-report.md.tmpl`
 - `templates/brief-section-verification-summary.md.tmpl`
@@ -325,6 +300,8 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
   before the verify push.
 - Do honor `.mino/config.yml > report.promotion: never` to disable promotion.
 - When in doubt about promotion: do NOT promote.
+- Audible comments are rendered exclusively from `comment-*.md.tmpl` files. NEVER inline event yml into a comment.
+- Commit auto-link: include the commit URL in audible comments when `verify_anchor_sha` (or `code_ref`) is known.
 - Do NOT post a GitHub comment for `verify_passed` — silent in v1.10.
 - Do post audible comments for all other verify outcomes.
 

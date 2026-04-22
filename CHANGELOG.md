@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.6.2 — Slim-Comment Cleanup + Commit Auto-Link
+
+**Bug fixes (v0.5.2 debt paid)**
+
+- `mino-verify` audible comments no longer dump rendered event yaml. The
+  per-outcome operative instructions in SKILL.md (Steps 6.A–6.E) had
+  contradicted the L102 constraint since v0.5.2; v0.6.0 and v0.6.1
+  inherited the bug. Now every audible comment renders from a dedicated
+  `comment-verify-*.md.tmpl` (markdown only, no yaml).
+- `mino-checkup` `checkup_done` comment no longer inlines every local
+  event yml in sequence order. The L196 constraint was a leftover from
+  v0.5.0 aggregate behavior that v0.5.2 forgot to delete.
+- `Commit:` auto-link is now wired into all audible comments when a sha
+  is bound (the second half of v0.5.2's promise).
+
+**New invariant in protocol** (v1.13 additive, no header bump): § Slim
+Comment Invariant explicitly enumerates what audible GitHub comments may
+and may not contain. Skills enforce it via dedicated `comment-*.md.tmpl`
+files. The local `.mino/events/issue-{N}/` tree is reaffirmed as the sole
+authoritative structured log.
+
+**No retroactive cleanup.** Existing GitHub issue comments authored under
+v0.5.2 / v0.6.0 / v0.6.1 are left untouched.
+
+**No breaking changes.** Local event yml schemas unchanged. Brief schemas
+unchanged. No new event types.
+
 ## v0.6.1 — Verification Report Artifact
 
 **Highlights**

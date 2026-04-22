@@ -193,7 +193,7 @@ Brief edits are always surgical: replace only the named section header and its b
 - Do NOT auto-sync a brief to `done` after detecting an external close — record `External Event` and stop.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 - Do NOT post individual comments for `checkup_accept_recorded` or `checkup_aggregate_recorded` — silent in v1.10.
-- Do post a single consolidated summary comment at `checkup_done`, inlining every local event yml block in sequence order.
+- Do post a single concise summary comment at `checkup_done` rendered from `templates/comment-checkup-summary.md.tmpl` (heading + Completion Basis + Code Ref / Commit link + optional Docs link). NEVER inline event yml or `.mino/*` paths into the comment. The local `.mino/events/issue-{N}/` tree is the authoritative log.
 - Do NOT derive sequence from issue comments; read from `.mino/events/issue-{N}/` filenames.
 
 ## References

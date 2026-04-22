@@ -463,3 +463,29 @@ Acquisition rules:
 - A Loop holds the repo-level `.mino/loops/active.lock` lease for its entire `running` duration. The lease is released on halt, completion, or cancellation. Stepwise skill invocations check the lease and adapt their hand-off behavior (silent return when the orchestrator holds the lease) but never acquire it themselves.
 - The Loop Entity (`.mino/loops/{loop_id}.yml`) is the sole source of truth for goal, task set, budget, and status. Briefs may mirror `Halt Reason` for the most recent halt of a task, but mirror status only -- the Loop Entity is authoritative.
 - `/mino-task` approval is the per-goal Loop-Mode opt-in required by these invariants. The approval prompt MUST explicitly name the Loop Mode authorization and list the frozen task set; an implicit "yes" to a DAG preview without that text does not constitute valid Loop authorization.
+
+### Slim Comment Invariant (since v0.6.2; clarifying v0.5.2 intent)
+
+Audible GitHub comments MUST contain ONLY:
+
+- A short human-readable heading
+- `Reason:` (one line)
+- `Action:` (one line, may be `—`)
+- Optional `Commit: <github URL>` when a sha is bound
+- Optional `Docs: <github URL>` when a doc was promoted
+- Optional `Report: <github URL>` when a report was promoted
+
+Audible GitHub comments MUST NOT contain:
+
+- Rendered event yaml of any kind (no `iron_tree:` blocks, no fences)
+- Any `.mino/*` filesystem path (those are local-only artifacts)
+- Inline event-log dumps (no `--- sequence N · ... ---` dividers)
+- Pointers like "Local events: `.mino/events/...`"
+
+The local `.mino/events/issue-{N}/` tree is the authoritative structured
+log. GitHub comments are the human notification channel.
+
+Skills enforce this by rendering audible comments exclusively from
+`comment-{event-kebab}.md.tmpl` files (no yaml fences inside). The
+existing `event-{event-kebab}.yml.tmpl` files are reserved for writing
+to `.mino/events/`.
