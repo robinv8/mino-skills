@@ -147,6 +147,8 @@ events MAY include:
   was authored (most cases).
 - `promoted_doc: {docs_path}/{slug}.md` — set only when promotion occurred.
   Absent or `null` otherwise.
+- `reply_posted: <comment_url>` — set when a reply comment was posted in
+  this flow. Absent or `null` otherwise. (since v0.6.3)
 
 These fields are optional for backward compatibility with pre-v0.6.1 events.
 
@@ -464,7 +466,7 @@ Acquisition rules:
 - The Loop Entity (`.mino/loops/{loop_id}.yml`) is the sole source of truth for goal, task set, budget, and status. Briefs may mirror `Halt Reason` for the most recent halt of a task, but mirror status only -- the Loop Entity is authoritative.
 - `/mino-task` approval is the per-goal Loop-Mode opt-in required by these invariants. The approval prompt MUST explicitly name the Loop Mode authorization and list the frozen task set; an implicit "yes" to a DAG preview without that text does not constitute valid Loop authorization.
 
-### Slim Comment Invariant (since v0.6.2; clarifying v0.5.2 intent)
+### Slim Comment Invariant (since v0.6.2; refined by Comment Classes in v0.6.3)
 
 Audible GitHub comments MUST contain ONLY:
 
@@ -489,3 +491,86 @@ Skills enforce this by rendering audible comments exclusively from
 `comment-{event-kebab}.md.tmpl` files (no yaml fences inside). The
 existing `event-{event-kebab}.yml.tmpl` files are reserved for writing
 to `.mino/events/`.
+
+> Note (v0.6.3+): Status comments are NOT the only audible channel. See
+> § Comment Classes for the reply class, which is content-bearing and
+> conversational rather than slim.
+
+### Comment Classes (since v0.6.3)
+
+GitHub issue comments fall into exactly one of two classes:
+
+**Status comments** (slim, machine-shaped). Posted only on interrupts:
+
+- `verify_failed_retryable` — loop-mode debuggability requires visibility
+- `verify_failed_terminal` — task is blocked; humans must see this
+- `verify_pending_acceptance` — explicitly asks a human to act
+- `verify_publication_failed` — push refused; humans must triage
+
+Status comments follow the Slim Comment Invariant above. They are rendered
+exclusively from `comment-{event-kebab}.md.tmpl` files in the corresponding
+skill's `templates/` directory.
+
+**Reply comments** (conversational, content-bearing). Posted at convergence:
+
+- After `verify_passed` (6.A) when there is human-relevant content to convey
+- After `verify_pending_acceptance` (6.D) when there is human-relevant content to convey
+- At `checkup` `finalize` when convergence has not already been replied to
+
+Reply comments are rendered from `comment-reply.md.tmpl`. They speak to the
+issue author in second person, contain prose / steps / version matrices /
+doc links, and contain NO machine fields (no `Completion Basis:`, no
+`Code Publication State:`, no bare SHA, no `iron_tree:` yaml, no `.mino/*`
+paths, no event names, no emoji status badges).
+
+`verify_passed` and `checkup_done` remain **silent on the status channel**.
+Whatever they need to convey reaches the user via the reply channel — or not
+at all (the local event log is the durable record).
+
+### Reply Dispatch (since v0.6.3)
+
+When a reply opportunity arises (after 6.A, 6.D, or in `checkup` `finalize`),
+the agent runs the **three-way decision**:
+
+1. **Doc promotion** — `docs/integrations/{slug}.md` commit. Triggered by
+   the v0.6.1 promotion heuristic (generally-useful integration knowledge).
+   Independent of reply decision; a doc may be promoted with or without a reply.
+2. **Reply comment** — render `comment-reply.md.tmpl` and post via
+   `gh issue comment {N} --body-file <rendered>`.
+3. **Silent** — local report only; nothing on GitHub.
+
+Decision rule when `comment.reply: auto` (default):
+
+- If a reply was already posted earlier in this loop iteration (verify reply),
+  skip the checkup reply (avoid duplicate convergence comments).
+- Otherwise post a reply iff EITHER:
+  - the user-supplied `<note>` contains actionable content for the issue author, OR
+  - a doc was promoted in this flow AND the issue author would benefit from
+    knowing where the doc lives.
+- When in doubt, do NOT post.
+
+When `comment.reply: never`: never post; silent.
+When `comment.reply: always`: always post when at a reply opportunity.
+
+The decision (post or not) is recorded in the event yml's optional
+`reply_posted` field as the comment URL or `null`.
+
+`<note>` storage: never echoed verbatim to GitHub. For verify, appended to
+`.mino/reports/issue-{N}/report.md` under `## Manual Verifier Note`. For
+checkup `accept`, appended to the brief's `Manual Acceptance` section.
+
+`finalize` close-instruction (when `Close On Done: manual`):
+- If a reply is being posted: append one line to the reply
+  ("verify 后可执行 `gh issue close {N} --reason completed` 关闭")
+- If no reply is being posted: write the same instruction to the brief's
+  `Workflow State` section. Never as a standalone GitHub comment.
+
+#### Configuration
+
+`.mino/config.yml > comment.reply` (since v0.6.3):
+
+| Value | Behavior |
+|-------|----------|
+| `auto` (default) | Apply the dispatch decision rule above |
+| `always` | Always post a reply at every reply opportunity |
+| `never` | Never post a reply; silent on GitHub |

@@ -21,6 +21,11 @@ This skill consumes `run`'s output and feeds `checkup`. All structured artifacts
 - Load `.mino/briefs/issue-{N}.md` and the latest valid event sequence from the issue
 - Verify `Approved Revision == Spec Revision`; if not, halt and direct user to `/mino-task` for re-approval
 
+**Optional note**: the invocation may include free-form text after the
+issue/spec ref (e.g., `/mino-verify #1842 在小红书场景下需要 ...`). If present:
+- Capture it as local variable `manual_verifier_note` (single string).
+- Otherwise `manual_verifier_note = null`.
+
 ### Step 2: Anchor The Verification
 
 Record `Verify Anchor SHA = git rev-parse HEAD` **before** running any check.
@@ -88,6 +93,19 @@ in Step 6's event yml.
 
 If there is genuinely no substantive content (e.g., a trivial change with
 only a one-line test pass), set `report_path = null` and skip writing.
+
+If `manual_verifier_note` is non-null, append the following block to the
+report verbatim (no agent rephrasing — this is the human's input, preserved
+for audit):
+
+```
+## Manual Verifier Note
+
+{{ manual_verifier_note }}
+```
+
+The agent will synthesise from this note in Step 7 (Reply Dispatch); the
+verbatim copy here is the source of truth.
 
 ### Step 6: Render Verdict
 
@@ -175,7 +193,6 @@ gh issue edit {N} --remove-label "stage:verify" --add-label "stage:done"
 
 Label sync failure is a warning, not an error: log `stage_label_sync_failed: <reason>` in the verify report and proceed. The local yml remains authoritative.
 
-Do NOT post a GitHub comment for `verify_passed` — it is silent in v1.10. The local event file is the sole record at this stage.
 
 4. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed (the local event and brief updates are the hand-off signal).
 
@@ -258,6 +275,47 @@ This is reachable only from 6.A when `git push` (or any equivalent publication s
 
 5. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
+### Step 7: Reply Dispatch
+
+Runs **after** the verify outcome is recorded, only for outcomes 6.A
+(`verify_passed`) and 6.D (`verify_pending_acceptance`). Skip for 6.B / 6.C / 6.E.
+
+1. Read `.mino/config.yml > comment.reply` (default `auto`).
+   - If `never`: set `reply_posted = null`, skip to step 5.
+   - If `always`: jump to step 3.
+   - If `auto`: continue to step 2.
+
+2. Apply the auto decision rule (see protocol § Reply Dispatch):
+   - If `manual_verifier_note` is non-null AND contains content the issue
+     author would act on (steps, configuration, environment specifics),
+     proceed to step 3.
+   - Else if a doc was promoted in this flow (Step 6.A.1.5 set
+     `promoted_doc != null`), proceed to step 3.
+   - Else: set `reply_posted = null`, skip to step 5.
+
+3. Detect orchestrator context: if `.mino/loops/active.lock` shows
+   `holder_agent: mino-task` AND its heartbeat is fresh (≤ 6 hours), and
+   the loop has already replied for this issue earlier in this iteration
+   (check `.mino/events/issue-{N}/` for a prior `reply_posted` non-null in
+   the current loop window): set `reply_posted = null`, skip to step 5.
+   This avoids duplicate convergence comments per loop pass.
+
+4. Render `templates/comment-reply.md.tmpl`:
+   - Synthesise variables from the report (Step 5.5 output) and
+     `manual_verifier_note`.
+   - Apply the variable rules in the template's HTML comment header.
+   - Post via `gh issue comment {N} --body-file <rendered>`.
+   - Capture the returned URL as `reply_posted`.
+   - On post failure: log `reply_post_failed: <reason>` in the report,
+     set `reply_posted = null`, do NOT retry. The local report remains
+     authoritative.
+
+5. **Patch the previously written event file** (the one for the chosen
+   verify outcome) to set the `reply_posted` field to the captured URL or
+   `null`. The event file is local and append-only at the file level but
+   field-level edits before the next event are permitted (this matches how
+   `report_path` and `promoted_doc` are written today).
+
 ## Templates
 
 All artifact shapes are externalized; `verify` MUST NOT generate freehand variations.
@@ -271,6 +329,7 @@ All artifact shapes are externalized; `verify` MUST NOT generate freehand variat
 - `templates/comment-verify-failed-terminal.md.tmpl`
 - `templates/comment-verify-pending-acceptance.md.tmpl`
 - `templates/comment-verify-publication-failed.md.tmpl`
+- `templates/comment-reply.md.tmpl`
 - `templates/report.md.tmpl`
 - `templates/brief-section-verification-report.md.tmpl`
 - `templates/brief-section-verification-summary.md.tmpl`
@@ -304,6 +363,11 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Commit auto-link: include the commit URL in audible comments when `verify_anchor_sha` (or `code_ref`) is known.
 - Do NOT post a GitHub comment for `verify_passed` — silent in v1.10.
 - Do post audible comments for all other verify outcomes.
+- Do NOT post `verify_passed` as a status comment. The reply channel
+  (Step 7) is the only audible surface for convergence outcomes.
+- Do NOT echo `manual_verifier_note` verbatim to GitHub. Synthesise into
+  the reply template.
+- Do NOT retry a failed reply post. Local report is the durable artifact.
 
 ## References
 

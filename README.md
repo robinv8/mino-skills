@@ -2,7 +2,7 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.6.2-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.6.2)
+[![Version](https://img.shields.io/badge/release-v0.6.3-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.6.3)
 [![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.13-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
@@ -211,6 +211,7 @@ The update overwrites only the files inside `.claude/skills/<name>/` or `.agents
 
 Protocol upgrades are designed to be backward compatible at minor versions: state machines that are mid-flight when you update keep working without migration. Major-version bumps (e.g., `v2.0`) will document any required action at the top of this README.
 
+> v0.6.3 — **Reply Comments + Optional Note Input + Default-Silent Status.** GitHub issue comments split into two classes: **status** (slim, interrupt-only) and **reply** (conversational, content-bearing). `checkup_done` and `verify_passed` no longer post status comments. New `<note>` argument lets human verifiers feed prose into agent reply decisions. Protocol additions (additive, v1.13 stays): § Comment Classes, § Reply Dispatch, optional event field `reply_posted`.
 > v0.6.2 — **Slim-Comment Cleanup + Commit Auto-Link.** Pays off v0.5.2 debt: audible GitHub comments now render exclusively from `comment-*.md.tmpl` files (no yaml fences, no `.mino/*` paths). `Commit:` auto-link is wired into all audible comments. Protocol gains § Slim Comment Invariant (additive; v1.13 stays).
 > v0.6.1 — **Verification Report Artifact.** `mino-verify` now authors a human-readable evidence report at `.mino/reports/issue-{N}/report.md` and optionally promotes it to `docs/integrations/<slug>.md` as a separate commit. `verify_*` events gain optional `report_path` and `promoted_doc` fields. Protocol stays at v1.13.
 > v0.6.0 — **Loop Mode is now the default for /mino-task.** After approval, the orchestrator drives run/verify/checkup automatically until a halt condition fires (approval-required, pending_acceptance, fail_terminal, blocked, reapproval_required, loop_budget_exhausted). New /mino-task resume <loop_id> sub-command for explicit halt resolution. New .mino/loops/ directory holds Loop entity + repo-level lease. Stepwise opt-out: invoke /mino-run, /mino-verify, /mino-checkup directly. **BREAKING** behavior change.

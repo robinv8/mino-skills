@@ -86,6 +86,11 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
 
 `accept <issue>` records human acceptance for a task currently in `pending_acceptance`.
 
+**Optional note**: invocation may include free-form text after the issue ref
+(`/mino-checkup accept #1842 在你的项目里 ...`). If present, capture as
+`manual_verifier_note` and append it verbatim to the brief's
+`Manual Acceptance` section under a `### Accept Note` subsection.
+
 1. Confirm `Workflow Entry State: pending_acceptance`. If not, halt and report.
 2. **Publish any local-only code first**:
    - Stage all changes except workflow-local cache:
@@ -141,29 +146,49 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - `Next Stage: none`
 3. **Record `checkup_done` locally** — render `templates/event-checkup-done.yml.tmpl` with the bound `completion_basis`, `code_ref`, `code_publication_state`, and write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-done.yml`.
 
-4. **Post terminal completion notice**:
-   - Read the latest `verify_*` event for the issue. If that event has
-     `promoted_doc` set (non-null), include it as a `Docs:` line in the
-     rendered `templates/comment-checkup-summary.md.tmpl` (the template
-     variable `docs_line_or_empty` expands to the link when present).
-   - Render `templates/comment-checkup-summary.md.tmpl` (a short completion
-     notice: title + optional Docs line + Completion Basis + Code Ref +
-     Code Publication State; no inline event log). Post via
-     `gh issue comment {N} --body-file <rendered>`. If the comment post
-     fails: log `comment_post_failed: <reason>` in the report, do NOT retry
-     automatically. The local `.mino/events/issue-{N}/` log is authoritative
-     regardless.
+4. **Reply Dispatch** (replaces the deprecated v0.6.2 summary comment):
+
+   Read `.mino/config.yml > comment.reply` (default `auto`).
+
+   - If `never`: set `reply_posted = null`, skip to step 5.
+   - If `always`: render `templates/comment-reply.md.tmpl` and post.
+   - If `auto`:
+     - Check whether a reply was already posted in this loop iteration
+       (scan `.mino/events/issue-{N}/` for any prior event with
+       `reply_posted` non-null within the current loop window). If yes:
+       set `reply_posted = null`, skip to step 5 (no duplicate
+       convergence reply).
+     - Else if the latest verify event has `promoted_doc != null` OR
+       the brief's Manual Acceptance contains a `### Accept Note`
+       subsection with actionable prose: render and post.
+     - Else: set `reply_posted = null`, skip to step 5.
+
+   When rendering, synthesise variables from:
+   - The latest `verify_*` event (for `promoted_doc` → `docs_link_line_or_empty`)
+   - The brief's report at `.mino/reports/issue-{N}/report.md`
+   - The brief's `Accept Note` subsection (if present)
+
+   Apply the template's HTML-comment variable rules. Post via
+   `gh issue comment {N} --body-file <rendered>`. On failure: log
+   `reply_post_failed: <reason>`, set `reply_posted = null`, do NOT retry.
+
+   Then patch the `event-checkup-done.yml` file written in step 3 to set
+   `reply_posted` to the captured URL or `null`.
 
 5. Issue closure:
-   - If brief `Close On Done: auto` and the issue is still open: `gh issue close {N} --reason completed`.
-   - If `Close On Done: manual`: leave the issue open and post:
-     > [checkup] issue-{N}: Task done — awaiting manual verification
-     >
-     > To close this issue after verification, run:
-     > ```
-     > gh issue close {N} --reason completed
-     > ```
-   - If the issue was already closed externally before finalize ran, do NOT re-open and do NOT re-close. Note the pre-existing closure in the report.
+   - If brief `Close On Done: auto` and the issue is still open:
+     `gh issue close {N} --reason completed`.
+   - If `Close On Done: manual`: leave the issue open. Convey the close
+     instruction via ONE of:
+     - If step 4 posted a reply (`reply_posted != null`): append a final
+       line to the reply body BEFORE posting it (or, if already posted,
+       this is a known minor lag — the brief still carries the instruction).
+     - If step 4 was silent: write the close instruction to the brief's
+       `Workflow State` section as `Manual Close: gh issue close {N} --reason completed`.
+     Never post a standalone manual-verification prompt as a status comment.
+   - If the issue was already closed externally before finalize ran, do
+     NOT re-open and do NOT re-close. Note the pre-existing closure in the
+     report.
 
 6. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
@@ -176,6 +201,8 @@ Events posted by checkup share the same sequence space as task / run / verify ev
 All event YAML and brief sections come from `templates/`. Render via literal `{{ var }}` substitution; no conditionals.
 
 - Events: `event-checkup-preflight-blocked.yml.tmpl`, `event-checkup-accept-recorded.yml.tmpl`, `event-checkup-accept-publication-failed.yml.tmpl`, `event-checkup-aggregate-recorded.yml.tmpl`, `event-checkup-done.yml.tmpl`, `event-checkup-reconcile-external-close.yml.tmpl`, `event-checkup-reconcile-sequence-gap.yml.tmpl`.
+- Reply: `comment-reply.md.tmpl` — sole rendering source for finalize convergence.
+- Deprecated (kept on disk for rollback, remove in v0.7.0): the old summary template (`comment-checkup-*.md.tmpl`).
 - Brief sections: `brief-section-acceptance-summary.md.tmpl`, `brief-section-aggregate-summary.md.tmpl`, `brief-section-external-event.md.tmpl`, `brief-section-publication-failure.md.tmpl`.
 
 Brief edits are always surgical: replace only the named section header and its body up to the next `## ` header. Never touch `Open Questions / Warnings`, `Source`, or any other section not listed above.
@@ -193,7 +220,14 @@ Brief edits are always surgical: replace only the named section header and its b
 - Do NOT auto-sync a brief to `done` after detecting an external close — record `External Event` and stop.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 - Do NOT post individual comments for `checkup_accept_recorded` or `checkup_aggregate_recorded` — silent in v1.10.
-- Do post a single concise summary comment at `checkup_done` rendered from `templates/comment-checkup-summary.md.tmpl` (heading + Completion Basis + Code Ref / Commit link + optional Docs link). NEVER inline event yml or `.mino/*` paths into the comment. The local `.mino/events/issue-{N}/` tree is the authoritative log.
+- Do NOT post a `checkup_done` status comment. Convergence reaches the
+  user via Reply Dispatch (Finalize step 4) or remains silent. The local
+  `.mino/events/issue-{N}/` tree is the authoritative log.
+- Do NOT post a standalone manual-verification prompt as a comment.
+  Manual close instructions live in the reply (when one is posted) or
+  in the brief `Workflow State` section.
+- Do NOT echo `manual_verifier_note` / `Accept Note` verbatim to GitHub.
+- Do NOT retry a failed reply post.
 - Do NOT derive sequence from issue comments; read from `.mino/events/issue-{N}/` filenames.
 
 ## References

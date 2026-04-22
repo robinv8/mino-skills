@@ -1,0 +1,27 @@
+<!--
+Reply template variables (resolved by the agent from report + note):
+- greeting_line: short opener addressing the issue author. Required.
+- body_paragraphs: 1–3 short paragraphs explaining the verified conclusion in plain prose. Required.
+- steps_or_recipe_or_empty: numbered steps OR fenced code blocks for actionable instructions. Empty string if not applicable.
+- versions_line_or_empty: one line listing key environment versions verified (e.g., "验证环境：Taro 4.2.0 / taro-ui 3.3.0 / ..."). Empty string if not applicable.
+- docs_link_line_or_empty: when a doc was promoted, one line: "完整 recipe 已整理到 docs/integrations/{slug}.md (commit {sha7})". Empty string otherwise.
+- follow_up_question_or_empty: an inviting follow-up to keep the channel alive (e.g., "如果按上面跑还有报错，把 ... 输出贴一下"). Empty string if not applicable.
+
+Hard constraints (Slim/Reply Comment Invariant):
+- No emoji status badge (no finish-line / checkmark / pause symbols).
+- No machine fields like Basis, State, or Ref as labeled lines.
+- No bare SHAs — links only (full github.com URL when referenced).
+- No event yaml blocks. No local filesystem paths. No event names.
+- Speak in second person, present tense, no agent self-reference.
+-->
+{{ greeting_line }}
+
+{{ body_paragraphs }}
+
+{{ steps_or_recipe_or_empty }}
+
+{{ versions_line_or_empty }}
+
+{{ docs_link_line_or_empty }}
+
+{{ follow_up_question_or_empty }}

@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.6.3 — Reply Comments + Optional Note Input + Default-Silent Status
+
+**New comment class: reply** (conversational, content-bearing). Posted at
+convergence (`verify_passed` / `verify_pending_acceptance` / `checkup_done`)
+when the agent judges there is human-relevant content to convey. Rendered
+from a new `comment-reply.md.tmpl` (in both `mino-verify/templates/` and
+`mino-checkup/templates/`). Speaks to the issue author in second person;
+contains no machine fields, no `Completion Basis:`, no bare SHA, no yaml,
+no `.mino/*` paths.
+
+**Status comments are now interrupt-only**: `verify_failed_retryable`,
+`verify_failed_terminal`, `verify_pending_acceptance`,
+`verify_publication_failed`. The `checkup_done` status comment and the
+"awaiting manual verification" prompt are gone — both leaked agent
+internals into the user-facing comment stream.
+
+**Optional `<note>` argument** for `/mino-verify` and `/mino-checkup`. Free-form
+text following the issue ref. Used as the agent's primary decision input for
+reply dispatch. Stored locally:
+- verify: `## Manual Verifier Note` section in `.mino/reports/issue-{N}/report.md`
+- checkup accept: `### Accept Note` subsection in brief `Manual Acceptance`
+Never echoed verbatim to GitHub; the agent synthesises into the reply template.
+
+**Reply dispatch** (three-way decision: doc / reply / silent). Default `auto`.
+Configurable via `.mino/config.yml > comment.reply` (`auto` | `always` | `never`).
+"When in doubt, do not post."
+
+**Protocol additions** (v1.13 additive, no header bump):
+- § Comment Classes (status vs reply)
+- § Reply Dispatch (decision rule)
+- § Slim Comment Invariant updated to reference Comment Classes
+- New optional event field `reply_posted: <comment_url> | null` on
+  `verify_passed`, `verify_pending_acceptance`, `checkup_done`
+
+**Deprecated (kept on disk for rollback safety, remove in v0.7.0)**:
+`mino-checkup/templates/comment-checkup-summary.md.tmpl`.
+
+**No retroactive cleanup.** Pre-v0.6.3 GitHub comments are left untouched.
+
+**No breaking changes.** All event field additions are optional.
+
 ## v0.6.2 — Slim-Comment Cleanup + Commit Auto-Link
 
 **Bug fixes (v0.5.2 debt paid)**
