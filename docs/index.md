@@ -3,11 +3,8 @@ layout: home
 
 hero:
   name: Mino Skills
-  text: Task-Driven Development
-  tagline: Turn a Markdown spec into executed, verified code — regardless of which AI agent you use.
-  image:
-    src: /logo.png
-    alt: Mino Skills
+  text: From Markdown to Merged
+  tagline: Four skills. One protocol. Any agent. Drive a requirement document all the way to verified code without leaving your terminal.
   actions:
     - theme: brand
       text: Get Started
@@ -17,66 +14,55 @@ hero:
       link: https://github.com/robinv8/mino-skills
 
 features:
-  - title: Four Skills, One Protocol
-    details: task → run → verify → checkup. Iron Tree Protocol v1.13 governs every transition.
-  - title: Agent Agnostic
-    details: Works with Claude Code, Cursor, Copilot, Goose, Gemini CLI, and any Agent Skills-compatible host.
-  - title: Template-Driven Artifacts
-    details: All events, briefs, and issue bodies render from fixed templates — byte-identical across agents.
-  - title: Loop Mode (v0.6.0)
-    details: Approve once, let the orchestrator drive run/verify/checkup autonomously until done or halted.
-  - title: Verified E2E
-    details: 28/28 regression tests pass across happy path, imperfect reality, and protocol edge cases.
-  - title: Silent by Default
-    details: GitHub comments are interrupt-only. Local `.mino/events/` is the single source of truth.
+  - icon: 🪨
+    title: task → run → verify → checkup
+    details: Four prompts compose the entire pipeline. Each one owns a stage of the Iron Tree Protocol; together they take a spec from intake to done.
+  - icon: 🔌
+    title: Agent-agnostic
+    details: Runs on Claude Code, Cursor, Copilot CLI, Goose, Gemini CLI, and any Agent Skills compatible host. Switch agents mid-task without losing state.
+  - icon: ♾️
+    title: Loop Mode
+    details: Approve once. The orchestrator drives run/verify/checkup autonomously across an entire DAG until done — or halts cleanly on a defined boundary.
+  - icon: 📜
+    title: Local-first event log
+    details: Every transition is an immutable YAML event in .mino/events/. GitHub comments stay silent unless a human truly needs to be interrupted.
 ---
 
-## What is this?
+## Try it in 30 seconds
 
-A set of four engineering skills that implement the **Iron Tree Protocol**: an opinionated workflow for taking a Markdown requirement document all the way through execution, verification, acceptance when needed, composite aggregation, and reconciliation.
+```bash
+$ /mino-task specs/login.md
+Resolved 3 task(s) into Loop 2026-04-22-2300-a3f9c2.
+  1. #142  Add login form         add-login-form  [published]
+  2. #143  Wire JWT issuer        wire-jwt-issuer [published]
+  3. #144  Persist refresh token  persist-refresh [published]
+Approve and start Loop? (yes / edit / cancel)
+> yes
 
-```
-Markdown spec → /mino-task → DAG approval → /mino-run → /mino-verify → /mino-checkup → done
-```
+Loop 2026-04-22-2300-a3f9c2 started; driving 3 task(s).
+→ /mino-run    add-login-form     ✓ committed (a4f1c2d)
+→ /mino-verify add-login-form     ✓ pass
+→ /mino-run    wire-jwt-issuer    ✓ committed (b8e2d31)
+→ /mino-verify wire-jwt-issuer    ✓ pass
+→ /mino-run    persist-refresh    ✓ committed (c1d8f49)
+→ /mino-verify persist-refresh    ✓ pass
 
-No GUI. No runtime. No deposition events. Just prompts that agents follow.
-
-## The Iron Tree Protocol
-
-> **Etymology** — `Iron` for the iron-clad guarantees the protocol enforces (immutable event log, deterministic state machine, idempotent publish, audit-trail by construction); `Tree` for the data structure every workflow takes — a DAG of composite parents and child tasks linked by `depends_on`.
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   task      │────▶│    run      │────▶│   verify    │
-│  define     │     │  execute    │     │   validate  │
-└─────────────┘     └─────────────┘     └──────┬──────┘
-                                               │
-                          ┌────────────────────┼────────────────────┐
-                          │                    │                    │
-                          ▼                    ▼                    ▼
-                    ┌──────────┐       ┌──────────┐       ┌──────────┐
-                    │   pass   │       │ retryable│       │ terminal │
-                    │  checkup │       │   run    │       │  blocked │
-                    └──────────┘       └──────────┘       └──────────┘
-                          │
-                          ▼
-                    ┌──────────┐
-                    │   done   │
-                    └──────────┘
+Loop 2026-04-22-2300-a3f9c2 completed: 3 task(s) done in 6 transition(s).
 ```
 
-## Skills
+No GUI. No runtime. No background daemon. Just prompts your agent already knows how to read.
 
-| Skill | Purpose |
-|-------|---------|
-| **task** | Read a Markdown doc, extract a task DAG, ask for approval, create issues + local briefs |
-| **run** | Execute an approved DAG serially, self-correct from prior verification failures |
-| **verify** | Build, test, lint. Pass/fail with actionable context |
-| **checkup** | Environment check, brief reconciliation, manual acceptance, composite aggregation |
+## The Four Skills
 
-## Quick Links
+| Skill | What it does |
+|---|---|
+| [**mino-task**](/skills/task) | Read a spec or adopt existing issues; produce a task DAG; orchestrate Loop Mode |
+| [**mino-run**](/skills/run) | Implement one approved task; commit the change |
+| [**mino-verify**](/skills/verify) | Build, test, lint; report pass / retryable / terminal with context |
+| [**mino-checkup**](/skills/checkup) | Reconcile briefs, accept manual verifications, aggregate composite parents |
 
-- [Installation](/guide/installation) — get up and running in minutes
-- [Quick Start](/guide/quickstart) — write a spec and drive it to done
-- [Iron Tree Protocol](/reference/iron-tree-protocol) — the full execution loop specification
-- [Changelog](/migration/changelog) — release history and migration notes
+## Why "Iron Tree"
+
+> **Iron** — iron-clad guarantees: an immutable event log, deterministic state machine, idempotent publish, audit trail by construction. **Tree** — every workflow is a DAG of composite parents and child tasks linked by `depends_on`.
+
+Read the [full protocol specification](/reference/iron-tree-protocol) for the state machine, halt conditions, and contract details.

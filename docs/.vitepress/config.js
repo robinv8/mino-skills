@@ -185,7 +185,7 @@ export default defineConfig({
 
         footer: {
             message: 'Released under the MIT License.',
-            copyright: 'Copyright © present'
+            copyright: 'Copyright © 2026 robinv8'
         }
     }
 })
