@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.6.4
+
+**Fix**: Adopt → Loop wiring. Every adopt-touching intent (`adopt_single`, `single_issue`, `multi_issue`, `top_n`, `all_open`) now correctly enters Loop Mode after adoption, fulfilling the protocol § Intent Resolution promise that v0.6.0 only honored for the PRD path.
+
+### What changed
+
+- New § **Adopt Dispatch** in `skills/mino-task/SKILL.md` orchestrates the per-issue adopt loop and routes to Loop Driver after the single Resolved Plan approval.
+- **Adopt-Step 5** (per-issue `Approve adoption?` prompt) is removed from all current intents. Batch invocations of 5 issues no longer interrupt 5 times. The Resolved Plan is now the sole approval gate.
+- **Adopt-Step 9** no longer prints `Run /mino-run issue-{N}` and stops. It now returns control to Adopt Dispatch, which renders the Resolved Plan after the last issue and enters Loop Driver on `yes`.
+- **Resolved Plan** task lines now annotate `[adopted]`, `[re_adopted, archived to <path>]`, or `[published]` so the re_adopt cost is visible before approval.
+- Legacy `/mino-task adopt issue-N` syntax is unified with `#<N>` — both go through Adopt Dispatch and enter Loop with `task_done`.
+
+### Migration
+
+None required. Briefs, events, labels, and Loop entities from prior versions are unchanged. The per-issue `Approve adoption?` prompt is gone; users who want stepwise control should invoke `/mino-run` / `/mino-verify` / `/mino-checkup` directly on individual issues instead of `/mino-task #<N>`.
+
+### Caveat
+
+If a user `cancel`s at the Resolved Plan stage after Adopt Dispatch processed `re_adopted` issues, the archived files at `.mino/archive/issue-<N>-rev-<hex>/` are **not** auto-restored. The Resolved Plan annotation surfaces the archive paths so the cost is visible before approval. Manual restore via `mv` is straightforward if needed.
+
 ## v0.6.3 — Reply Comments + Optional Note Input + Default-Silent Status
 
 **New comment class: reply** (conversational, content-bearing). Posted at

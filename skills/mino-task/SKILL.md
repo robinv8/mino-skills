@@ -24,7 +24,7 @@ This skill is the protocol's entry point and, as of v0.6.0, its **Loop orchestra
 |---|---|---|
 | Empty argument | `none` | Print usage and halt. Do not enter Loop Mode. |
 | Argument matches `resume <loop_id>[ continue\|skip <task_key>\|cancel]` | `resume` | Branch to § Resume Mode. |
-| Argument matches `adopt issue-<N>` (legacy syntax) | `adopt_single` | Equivalent to `#<N>`; branch to § Adopt Mode then enter Loop with `goal_kind: task_done`. |
+| Argument matches `adopt issue-<N>` (legacy syntax) | `adopt_single` | Treated identically to `single_issue` (`#<N>`). Goes through § Adopt Dispatch, then Loop with `goal_kind: task_done`. The legacy phrasing is retained for users with muscle memory; no behavioral carve-out remains. |
 | Argument is an existing file path ending in `.md` | `prd` | Branch to existing native PRD flow (Steps 1–6). After publish, enter Loop with `goal_kind: set_done` over the published `task_keys`. |
 | Argument contains exactly one `#<N>` token | `single_issue` | Branch to § Adopt Mode for that issue, then Loop with `task_done`. |
 | Argument contains multiple `#<N>` tokens | `multi_issue` | Adopt each in given order, then Loop with `set_done`. |
@@ -54,7 +54,7 @@ Goal:           {task_done | set_done}
 Intent:         {verbatim user input}
 Resolved query: {one-line summary or "n/a (file path)"}
 Tasks ({len}):  budget = {budget_max_transitions} transitions
-  1. #<N>  <title>  <task_key>
+  1. #<N>  <title>  <task_key>  <[adopted] | [re_adopted, archived to <archive_path>]>
   2. ...
 Excluded ({len}, see notes):
   - #<N>  <reason: composite / closed / not adopted / etc>
@@ -65,7 +65,35 @@ Stepwise opt-out: invoke /mino-run, /mino-verify, /mino-checkup directly on a si
 Approve and start Loop? (yes / edit / cancel)
 ```
 
+The annotation slot is **mandatory** for tasks reached via § Adopt Dispatch. For the PRD path (intent = `prd`), where briefs are freshly published rather than adopted from existing issues, the slot is `[published]`.
+
 `yes` is the **explicit Loop Mode opt-in** required by protocol § Invariants. Do NOT proceed without it. `edit` returns control to the user to refine input. `cancel` exits without acquiring the lease.
+
+## Adopt Dispatch
+
+For intents `{ adopt_single, single_issue, multi_issue, top_n, all_open }`, run this sequence **before** rendering the Resolved Plan:
+
+1. **Resolve issue list** in the order implied by the intent:
+   - `adopt_single`, `single_issue`: the single `#<N>`.
+   - `multi_issue`: the `#<N>` tokens in the order the user wrote them.
+   - `top_n`, `all_open`: the canonical query result (oldest-first by issue number).
+2. **Run Adopt-Step 1 once** (pre-flight: `gh auth status`, label sync). Failures halt the entire batch.
+3. **For each issue in order**, run Adopt-Steps 2, 3, 4, 6, 7, 8 — i.e., fetch+validate, detect re-adopt+archive, compute identity, render brief, write event, apply labels. **Skip Adopt-Step 5 entirely** (the per-issue approval prompt). The Resolved Plan is the sole approval gate.
+   - If any per-issue step halts (composite refusal, non-OPEN issue, etc.), abort the batch with: `Batch adopt aborted at #<N>: <reason>. {len(completed)} issue(s) already adopted: {comma-separated task_keys}. Their briefs/events/labels are committed; archived files (if any re_adopt) are NOT auto-restored.`
+4. **Collect** for each adopted issue: `{issue_number, title, task_key, mode, archive_path_or_null}`.
+5. **Render the Resolved Plan** (§ Resolved Plan & Approval) using these annotations on each task line:
+   - `[adopted]` when `mode = adopted`
+   - `[re_adopted, archived to <archive_path>]` when `mode = re_adopted`
+6. **On `yes`**: enter § Loop Driver with `goal_kind` per the intent's row in the Intent Resolution table.
+7. **On `cancel`**: print exactly:
+   ```
+   Adopted {N} issue(s); Loop not started.
+   Re-invoke /mino-task with the same arguments to retry, or use /mino-run / /mino-verify / /mino-checkup directly on individual issues.
+   {if any re_adopt:} Note: archived files at the paths above are NOT auto-restored.
+   ```
+   Then exit (lease was never acquired).
+
+**Adopt Dispatch never prompts mid-stream.** All user interaction happens at the single Resolved Plan gate after every issue is processed.
 
 ## Loop Driver
 
@@ -119,7 +147,7 @@ Skipping is the **only** way a task is excluded from a Loop. The driver itself n
 
 ## Adopt Mode
 
-When the user invokes `/mino-task adopt issue-N` (instead of `/mino-task <path-to-spec.md>`), branch into Adopt Mode. This mode produces artifacts shape-compatible with native publication, then rejoins the standard flow at the approval gate.
+Adopt Mode contains the per-issue mechanics (Steps 1–9 below) used by **§ Adopt Dispatch** for every intent that consumes existing GitHub issues (`adopt_single`, `single_issue`, `multi_issue`, `top_n`, `all_open`). Adopt Mode produces artifacts shape-compatible with native publication. **Adopt Dispatch** owns the orchestration: it runs Step 1 once, runs Steps 2/3/4/6/7/8 per issue (skipping Step 5), collects results, then renders the Resolved Plan and enters the Loop Driver.
 
 ### Adopt-Step 1: Pre-flight
 
@@ -166,23 +194,13 @@ spec_revision = sha256( normalize(issue_title) + "\n---\n" + normalize(issue_bod
 adopted_at    = ISO 8601 timestamp, e.g. 2026-04-21T10:54:00Z
 ```
 
-### Adopt-Step 5: Approval Gate
+### Adopt-Step 5: (skipped by Adopt Dispatch)
 
-Show the user:
+This step is **not executed** under any current intent. Adopt Dispatch (§) runs Steps 2/3/4/6/7/8 per issue without mid-stream prompts; the **Resolved Plan & Approval** gate is the sole user opt-in.
 
-```
-Adopting issue #{N}: {title}
-  task_key:      {task_key}
-  spec_revision: {spec_revision}
-  mode:          {adopted | re_adopted}
-  {if re_adopted}: archived previous chain to {archive_path}
+Historically (≤ v0.6.3) this step issued a per-issue `Approve adoption? (yes / cancel)` prompt and, on `cancel` for `re_adopted` issues, rolled back archival by `mv`-ing files back. That UX is removed in v0.6.4: batch invocations would otherwise prompt N times. Re_adopt archival now occurs during Adopt-Step 3 and is **not** auto-restored if the user cancels at the Resolved Plan stage; the Resolved Plan annotates each task line with the archive path so the cost is visible before approval.
 
-Approve adoption? (yes / cancel)
-```
-
-Halt until explicit `yes`. `cancel` rolls back archival (re-`mv` files back) when `mode = re_adopted`.
-
-On approval (`yes`), before exiting Adopt-Step 5, run `gh issue edit {N} --remove-label "stage:task" --add-label "stage:run"`. Failures are warnings, not errors. (This mirrors native Step 5's approval-time label flip.)
+The label flip `stage:task → stage:run` historically performed here at approval time now occurs at **Loop Driver entry** (after the Resolved Plan `yes`), specifically when the Driver first invokes `/mino-run` for a given task — `/mino-run` itself manages the `stage:run` label per its own contract.
 
 ### Adopt-Step 6: Standardize & render brief
 
@@ -242,14 +260,11 @@ gh issue edit {N} --remove-label "stage:run" --remove-label "stage:verify" --rem
 
 Label-edit failures are warnings, not errors — log `stage_label_sync_failed: <reason>` in the report and continue. Local yml remains authoritative.
 
-### Adopt-Step 9: Report & next-step hint
+### Adopt-Step 9: Return to Adopt Dispatch
 
-```
-Adopted #{N} as {task_key} (revision {spec_revision}, mode {adopted|re_adopted}).
-Run `/mino-run issue-{N}` to start.
-```
+Append `{issue_number, title, task_key, mode, archive_path_or_null}` to the dispatcher's `pending_loop_set`. Do **not** print a per-issue "Run …" hint and do **not** halt. Return control to § Adopt Dispatch, which either continues with the next issue or, after the last one, renders the Resolved Plan.
 
-After Adopt Mode finishes, control returns to the user. Adopt Mode does **not** fall through to native Step 1–6.
+(The legacy "Run `/mino-run issue-{N}` to start" message is removed in v0.6.4; the Loop Driver replaces it.)
 
 ## Workflow
 
