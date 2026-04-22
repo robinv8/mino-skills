@@ -1,6 +1,6 @@
 # Iron Tree Protocol
 
-> Version: 1.10
+> Version: 1.11
 > Purpose: Define the recursive, low-touch execution engine.
 
 ## Concept
@@ -208,6 +208,14 @@ Failure paths **do not move the label**: a stuck issue's GitHub label tells the 
 ### PR Out of Scope
 
 Pull Requests are not adopted. PRs continue to merge against an issue; merging does not by itself transition any label.
+
+### Brief Standardization (v1.11+)
+
+The brief produced by adopt MUST be field-equivalent to a native publish brief. The agent treats the issue body (plus comments from the issue author or accounts with OWNER/MEMBER/COLLABORATOR association) as PRD-equivalent input and extracts structured `acceptance_criteria_checklist`, `verification_steps`, and `target_files_list` rather than copying issue body verbatim.
+
+If extraction yields insufficient detail, the brief MUST surface gaps in `Open Questions / Warnings` and halt approval until the user resolves them — sparse briefs are allowed but must be explicitly sparse.
+
+The issue body itself is NEVER edited by adopt. Standardization lives only in `.mino/briefs/issue-{N}.md`.
 
 ## DAG Rules
 
