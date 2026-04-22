@@ -90,6 +90,66 @@ If the commit step fails (e.g., a pre-commit hook rejects, identity not configur
 
 This field is required in Loop Mode so the Decision Function can distinguish between a verify-pass at a stale SHA and a verify-pass at the current SHA.
 
+## Verification Report
+
+`verify` produces a human-readable artifact at
+`.mino/reports/issue-{N}/report.md` whenever it has substantive evidence to
+record (passed checks with a meaningful run log, terminal failure analysis,
+or pending-acceptance with a real checklist). Pure retryable failures and
+publication failures do not author a report — their context lives in the
+brief's `Failure Context` section.
+
+The report is rendered from `mino-verify/templates/report.md.tmpl`. Sections:
+title, verify anchor SHA, outcome, environment (versions table), steps tested,
+findings, configuration recipe, promotion decision.
+
+### Promotion to Project Docs
+
+When the report contains generally-applicable integration knowledge — config
+matrix, version compatibility, env setup, recurring gotchas, framework
+integration walkthrough — it MAY be promoted into the project's docs tree as
+a separate commit, published in the same `git push` as `verify_passed`.
+
+- **Default target**: `docs/integrations/{kebab-slug-of-issue-title}.md`
+- **Override**: `.mino/config.yml > report.docs_path`
+- **Mode**: `.mino/config.yml > report.promotion` ∈ `auto` (default) | `never` | `always`
+- **When promoting and the file already exists**: append a section
+  `## Update {YYYY-MM-DD} (verify_anchor: {sha7})`. Never overwrite.
+- **Commit**: a separate commit titled
+  `docs(issue-N): {short title} integration notes` (with the standard
+  Co-authored-by trailer). Never amend the `run` commit. The subsequent
+  `git push` (already part of 6.A) publishes both commits.
+
+### Promotion Heuristic (auto mode)
+
+Promote when ALL of:
+- The findings would be useful to a future user of the project, not just
+  reviewers of this specific issue.
+- The configuration / version / setup advice is permanent (or stable until
+  a major upstream version change).
+- The content is substantial (not trivial one-liner).
+
+Do NOT promote when ANY of:
+- Bug reproduction logs / debugging traces tightly bound to this fix.
+- Internal refactor notes meaningful only to maintainers.
+- Speculative or experimental findings not yet validated.
+
+When in doubt: do NOT promote. False positives pollute the repo docs tree;
+false negatives only mean the report stays local — recoverable by a future
+manual re-promote (out of scope for v0.6.1).
+
+### Optional Event Fields
+
+`verify_passed`, `verify_pending_acceptance`, and `verify_failed_terminal`
+events MAY include:
+
+- `report_path: .mino/reports/issue-{N}/report.md` — set whenever a report
+  was authored (most cases).
+- `promoted_doc: {docs_path}/{slug}.md` — set only when promotion occurred.
+  Absent or `null` otherwise.
+
+These fields are optional for backward compatibility with pre-v0.6.1 events.
+
 ### Phase 6: Acceptance Or Aggregation (`checkup`)
 
 1. Record human acceptance when the task is in `pending_acceptance`

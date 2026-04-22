@@ -65,6 +65,30 @@ Walk each item in the brief's `Acceptance Criteria` section:
 - If the criterion is satisfied by an automated check, mark it as covered
 - If a criterion has no automated coverage, route the verdict to `pending_acceptance` (Step 6.D), even if all automated checks pass
 
+### Step 5.5: Author Verification Report
+
+For outcomes 6.A (passed), 6.C (terminal failure), and 6.D (pending
+acceptance) — when there is substantive evidence to record — render
+`templates/report.md.tmpl` to `.mino/reports/issue-{N}/report.md`.
+
+**Skip** for 6.B (retryable failure) and 6.E (publication failure): their
+context already lives in the brief's `Failure Context` section.
+
+The report's content is your synthesis of:
+- The selected verification commands (Step 3) and their outputs (Step 4)
+- The acceptance-criteria walk (Step 5)
+- Environment versions discovered (language toolchain, framework, key deps)
+- Configuration steps that were necessary to make verification pass
+- Recurring gotchas worth documenting
+
+Write `.mino/reports/issue-{N}/report.md` (overwrite if it already exists —
+the verify_anchor_sha in the header preserves which run authored it). Set
+local variable `report_path = .mino/reports/issue-{N}/report.md` for use
+in Step 6's event yml.
+
+If there is genuinely no substantive content (e.g., a trivial change with
+only a one-line test pass), set `report_path = null` and skip writing.
+
 ### Step 6: Render Verdict
 
 Choose exactly one of A–E. Each writes the brief **and** writes a local event file under `.mino/events/issue-{N}/{next_seq:04d}-{event-kebab}.yml`. Whether a GitHub comment is posted depends on the event's category:
@@ -83,16 +107,49 @@ Brief updates use surgical section replacement; preserve `Open Questions / Warni
 
 #### 6.A All automated checks passed AND all acceptance criteria covered
 
-1. **Publish code first** if relevant:
+1. **Publish code** if relevant:
    - If code files changed during `run`:
-     - The commit was already created by `run`. `verify` only needs to push.
-     - Run `git push`. If push fails, go to 6.E (publication failed) instead.
+     - The commit was already created by `run`.
+     - Run all `git commit` operations for this outcome (run's commit is
+       already in place; docs commit comes from 6.A.1.5). Run `git push`
+       exactly once after 6.A.1.5 has had its chance to add a docs commit.
+       If push fails, go to 6.E (publication failed) instead.
      - Capture `Code Ref = git rev-parse HEAD` after push.
      - Set `Code Publication State: published`.
    - If no code files changed:
      - Set `Code Ref: not_applicable`, `Code Publication State: not_applicable`.
 
+1.5. **Promote to Project Docs (optional)**:
+
+   Read `.mino/config.yml` field `report.promotion` (default `auto`). Read
+   `.mino/config.yml` field `report.docs_path` (default `docs/integrations/`).
+
+   - If `promotion: never` → skip; set `promoted_doc = null`.
+   - If `promotion: always` → promote.
+   - If `promotion: auto` → apply the heuristic from protocol § Verification
+     Report ("Promotion Heuristic"). When in doubt, do NOT promote.
+
+   On promote:
+   - Compute `slug = kebab-case(issue_title, max 60 chars)` (see protocol).
+   - `promoted_path = {docs_path}/{slug}.md`.
+   - If `promoted_path` exists: append a new section
+     `## Update {YYYY-MM-DD} (verify_anchor: {sha7})` with the new content.
+   - If not: write the report content as a fresh file.
+   - `git add {promoted_path}`
+   - `git commit -m "docs(issue-{N}): {short title} integration notes"`
+     with the standard `Co-authored-by` trailer.
+   - **NEVER** `git commit --amend` and **NEVER** `git push --force`.
+   - Set local variable `promoted_doc = {promoted_path}`.
+
+   After step 1.5 (whether promotion occurred or not):
+   - Run `git push` exactly once. If push fails, go to 6.E.
+
+   On promotion failure (commit error, file write error): log
+   `promotion_failed: <reason>` to the report header and set
+   `promoted_doc = null`. Do NOT abort verify_passed.
+
 2. **Update brief sections** (surgical replace):
+   - `Verification Report` ← render `templates/brief-section-verification-report.md.tmpl`
    - `Verification Summary` ← render `templates/brief-section-verification-summary.md.tmpl`
    - `Workflow State`:
      - `Current Stage: checkup`
@@ -183,6 +240,7 @@ Triggers:
 - An acceptance criterion explicitly requires human review (UI screenshot, perceptual quality, etc.)
 
 1. **Update brief sections**:
+   - `Verification Report` ← render `templates/brief-section-verification-report.md.tmpl`
    - `Manual Acceptance` ← render `templates/brief-section-manual-acceptance.md.tmpl` (write the actionable checklist here)
    - `Workflow State`:
      - `Current Stage: verify`
@@ -197,6 +255,7 @@ Triggers:
    ```
    ⏸️ manual acceptance required — #{N}
    Reason: {one line}
+   Docs: {promoted_doc as github URL}    # only when promoted_doc is set (rare in 6.D)
    Action: Run `/mino-checkup accept issue-{N}` after completing the checklist (stored in the local brief).
    ```
 
@@ -237,6 +296,8 @@ All artifact shapes are externalized; `verify` MUST NOT generate freehand variat
 - `templates/event-verify-failed-terminal.yml.tmpl`
 - `templates/event-verify-publication-failed.yml.tmpl`
 - `templates/event-verify-pending-acceptance.yml.tmpl`
+- `templates/report.md.tmpl`
+- `templates/brief-section-verification-report.md.tmpl`
 - `templates/brief-section-verification-summary.md.tmpl`
 - `templates/brief-section-failure-context.md.tmpl`
 - `templates/brief-section-manual-acceptance.md.tmpl`
@@ -256,6 +317,14 @@ Variable syntax is `{{ variable_name }}`. Replace literally; do not introduce co
 - Keep narrative summaries compact; the structured event is the machine source of truth.
 - Do NOT `push --force`, `reset --hard` past the remote tip, rebase or amend any pushed commit; use `git revert` to undo published work (see protocol § Multi-Agent Git Hygiene).
 - Do NOT treat `gh issue edit` label-sync failures as fatal; the local event yml is authoritative.
+- Do produce a verification report at `.mino/reports/issue-{N}/report.md`
+  whenever evidence is substantive (outcomes 6.A, 6.C, 6.D).
+- Do NOT include local report paths (`.mino/reports/...`) in GitHub comments.
+  Promoted docs/ paths are fine because they resolve as repo URLs.
+- Do NOT amend the run commit when promoting; create a separate docs commit
+  before the verify push.
+- Do honor `.mino/config.yml > report.promotion: never` to disable promotion.
+- When in doubt about promotion: do NOT promote.
 - Do NOT post a GitHub comment for `verify_passed` — silent in v1.10.
 - Do post audible comments for all other verify outcomes.
 

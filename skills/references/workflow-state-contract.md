@@ -35,6 +35,7 @@ Local briefs also carry workflow cache fields for scheduling and recovery:
 - `Execution Summary`
 - `Verification Summary`
 - `External Event` (optional; populated by `checkup reconcile` when an out-of-band event is detected, e.g., the linked issue is closed without a recorded `checkup_done`)
+- `Verification Report` (optional; authored by `verify` when substantive evidence exists; pointer block with local path and optional promoted doc link)
 
 The linked GitHub issue body plus structured workflow events are the authoritative record. Brief state is a local cache for fast DAG scheduling and may drift; `checkup reconcile` repairs the brief from issue metadata and the latest valid workflow event sequence.
 
@@ -150,6 +151,13 @@ Rules:
 - Recovery must ignore malformed events and any event whose `Approved Revision` does not match the task's current approved revision.
 - Human free-form comments without a valid event block are informational only and must not drive reconciliation.
 - When a comment is posted, it must exactly reproduce the local file's yml block; skills must not modify, re-serialize, or add fields on the way out.
+
+### Optional Event Fields
+
+`verify_passed`, `verify_pending_acceptance`, and `verify_failed_terminal` events MAY include:
+
+- `report_path: <path or null>` — optional, present when a report was authored
+- `promoted_doc: <path or null>` — optional, present when promotion occurred
 
 ## Event Categories
 

@@ -141,8 +141,20 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
    - `Next Stage: none`
 3. **Record `checkup_done` locally** — render `templates/event-checkup-done.yml.tmpl` with the bound `completion_basis`, `code_ref`, `code_publication_state`, and write to `.mino/events/issue-{N}/{next_seq:04d}-checkup-done.yml`.
 
-4. **Post terminal completion notice** — render `templates/comment-checkup-summary.md.tmpl` (a short 4-line completion notice as of v0.5.2: title + Completion Basis + Code Ref + Code Publication State; no inline event log). Post via `gh issue comment {N} --body-file <rendered>`. If the comment post fails: log `comment_post_failed: <reason>` in the report, do NOT retry automatically. The local `.mino/events/issue-{N}/` log is authoritative regardless.
-4. Issue closure:
+4. **Post terminal completion notice**:
+   - Read the latest `verify_*` event for the issue. If that event has
+     `promoted_doc` set (non-null), include it as a `Docs:` line in the
+     rendered `templates/comment-checkup-summary.md.tmpl` (the template
+     variable `docs_line_or_empty` expands to the link when present).
+   - Render `templates/comment-checkup-summary.md.tmpl` (a short completion
+     notice: title + optional Docs line + Completion Basis + Code Ref +
+     Code Publication State; no inline event log). Post via
+     `gh issue comment {N} --body-file <rendered>`. If the comment post
+     fails: log `comment_post_failed: <reason>` in the report, do NOT retry
+     automatically. The local `.mino/events/issue-{N}/` log is authoritative
+     regardless.
+
+5. Issue closure:
    - If brief `Close On Done: auto` and the issue is still open: `gh issue close {N} --reason completed`.
    - If `Close On Done: manual`: leave the issue open and post:
      > [checkup] issue-{N}: Task done — awaiting manual verification
@@ -153,7 +165,7 @@ Neither mode mutates any workflow event or transitions any task. Print a concise
      > ```
    - If the issue was already closed externally before finalize ran, do NOT re-open and do NOT re-close. Note the pre-existing closure in the report.
 
-5. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
+6. **Detect orchestrator mode**: if `.mino/loops/active.lock` exists AND its `holder_agent: mino-task` AND its `heartbeat_at` is within the last 6 hours: return silently. Otherwise proceed.
 
 ## Sequence numbers
 

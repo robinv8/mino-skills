@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.6.1 — Verification Report Artifact
+
+**Highlights**
+
+- New `.mino/reports/issue-{N}/report.md` artifact authored during `verify`,
+  capturing human-readable evidence: environment, steps tested, findings,
+  configuration recipes.
+- Optional **promotion** of the report into the project's docs tree
+  (`docs/integrations/<slug>.md` by default), as a separate commit pushed
+  alongside `verify_passed`. Controlled by `.mino/config.yml > report.promotion`
+  (`auto` | `never` | `always`).
+- `verify_*` events gain optional `report_path` and `promoted_doc` fields
+  (backward compatible — absence tolerated).
+- `mino-checkup finalize` close-out comment surfaces the promoted doc link
+  when present.
+- Protocol header stays at **v1.13** (additive change).
+
+**No breaking changes.** Existing `.mino/events/...` files without the new
+fields continue to validate.
+
+**Multi-agent git hygiene**: promotion is always a separate commit, never
+an amend. Push remains forward-only (no `--force`).
+
 ## v0.6.0 (2026-04-22)
 
 **Loop Mode by default.** Protocol bumped to **v1.13**. **BREAKING** behavior change.

@@ -34,12 +34,13 @@ A compliant brief should contain these sections:
 - `External Event`
 - `Completion Handoff`
 - `Execution Summary`
+- `Verification Report`
 - `Verification Summary`
 - `Pass/Fail Outcome`
 - `Open Questions / Warnings`
 - `Source`
 
-`Work Breakdown` is required for composite tasks. `Manual Acceptance`, `Failure Context`, `External Event`, `Execution Summary`, `Verification Summary`, and `Pass/Fail Outcome` may be absent until the workflow reaches those phases.
+`Work Breakdown` is required for composite tasks. `Manual Acceptance`, `Failure Context`, `External Event`, `Execution Summary`, `Verification Report`, `Verification Summary`, and `Pass/Fail Outcome` may be absent until the workflow reaches those phases.
 
 ## Required Fields By Section
 
@@ -130,6 +131,7 @@ Brief state is a local cache for fast DAG scheduling and CLI inspection.
 | Manual Acceptance | Detailed local checklist for pending human verification |
 | Failure Context | Exact failure payload for self-correction |
 | External Event | Out-of-band activity detected during reconciliation that contradicts workflow state |
+| Verification Report | Pointer to locally-authored evidence report and optional promoted doc link |
 | Completion Handoff | How the task became completable: verified, accepted, or aggregated |
 | Execution Summary | Concrete execution results |
 | Verification Summary | Concrete verification or acceptance or aggregation results |

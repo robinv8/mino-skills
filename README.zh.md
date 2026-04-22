@@ -2,7 +2,7 @@
 
 # Mino Skills
 
-[![Version](https://img.shields.io/badge/release-v0.6.0-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.6.0)
+[![Version](https://img.shields.io/badge/release-v0.6.1-brightgreen)](https://github.com/robinv8/mino-skills/releases/tag/v0.6.1)
 [![Protocol](https://img.shields.io/badge/Iron%20Tree%20Protocol-v1.13-blue)](skills/references/iron-tree-protocol.md)
 [![Validated](https://img.shields.io/badge/E2E-28%2F28-brightgreen)](reports/phase2-regression-report.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
@@ -211,6 +211,7 @@ npx skills list
 
 协议小版本升级保证向后兼容：升级时正在运行的状态机不需要迁移。大版本升级（如 `v2.0`）如有破坏性变更，会在 README 顶部写明迁移步骤。
 
+> v0.6.1 — **Verification Report Artifact。**`mino-verify` 现在在 `.mino/reports/issue-{N}/report.md` 生成可读验证报告，并可选择将其提升为 `docs/integrations/<slug>.md` 的独立提交。`verify_*` 事件新增可选的 `report_path` 和 `promoted_doc` 字段。协议保持在 v1.13。
 > v0.6.0 — **Loop Mode 现已成为 /mino-task 的默认行为。** Approve 后，orchestrator 自动驱动 run/verify/checkup，直到触发 halt 条件（approval-required, pending_acceptance, fail_terminal, blocked, reapproval_required, loop_budget_exhausted）。新增 /mino-task resume <loop_id> 子命令用于显式 halt 处置。新增 .mino/loops/ 目录存放 Loop entity + repo 级 lease。Stepwise opt-out：直接调用 /mino-run、/mino-verify、/mino-checkup。**BREAKING** 行为变更。
 > v0.5.2 — GitHub comment 精简为纯人类通知（不再内联 YAML / `Local events:` 路径）；commit 改用 `[run] #{N}` 以便 GitHub 在 issue 时间线自动关联。Protocol 升至 v1.12（策略变更，schema 不变）。
 > v0.5.1 — slash command 重命名为 `/mino-task`、`/mino-run`、`/mino-verify`、`/mino-checkup`，避免 palette 撞名。
