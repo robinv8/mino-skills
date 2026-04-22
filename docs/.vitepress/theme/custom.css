@@ -1,0 +1,20 @@
+:root {
+    --vp-c-brand-1: #2563eb;
+    --vp-c-brand-2: #1d4ed8;
+    --vp-c-brand-3: #3b82f6;
+    --vp-c-brand-soft: #eff6ff;
+
+    --vp-home-hero-name-color: transparent;
+    --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #2563eb 30%, #059669);
+    --vp-home-hero-image-background-image: linear-gradient(-45deg, #2563eb 50%, #059669 50%);
+    --vp-home-hero-image-filter: blur(40px);
+}
+
+.VPNavBar .VPNavBarTitle .title {
+    font-weight: 600;
+}
+
+.vp-doc h2 {
+    border-top: none;
+    padding-top: 0;
+}
