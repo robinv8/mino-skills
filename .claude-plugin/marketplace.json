@@ -1,0 +1,12 @@
+{
+    "name": "mino-skills",
+    "owner": { "name": "robinv8", "url": "https://github.com/robinv8" },
+    "plugins": [
+        {
+            "name": "mino",
+            "description": "Iron Tree Protocol skills for issue-driven multi-agent workflows.",
+            "source": "./",
+            "homepage": "https://github.com/robinv8/mino-skills"
+        }
+    ]
+}

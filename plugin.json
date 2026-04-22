@@ -1,0 +1,11 @@
+{
+    "name": "mino",
+    "description": "Iron Tree Protocol skills — task / run / verify / checkup for issue-driven multi-agent collaboration on GitHub repositories.",
+    "version": "0.5.0",
+    "author": { "name": "robinv8", "url": "https://github.com/robinv8" },
+    "homepage": "https://github.com/robinv8/mino-skills",
+    "repository": "https://github.com/robinv8/mino-skills",
+    "license": "MIT",
+    "keywords": ["iron-tree", "skills", "agent", "github-issues", "workflow", "multi-agent"],
+    "skills": "./skills/"
+}
