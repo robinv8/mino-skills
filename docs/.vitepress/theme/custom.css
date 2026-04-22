@@ -33,15 +33,6 @@
     --mino-c-bg-elevated: #ffffff;
     --mino-c-bg-subtle:   #f8fafc;
     --mino-c-bg-surface:  #f1f5f9;
-}
-
-.dark {
-    --mino-c-text-primary:   #f1f5f9;
-    --mino-c-text-secondary: #94a3b8;
-    --mino-c-text-tertiary:  #64748b;
-    --mino-c-bg-elevated: #1e293b;
-    --mino-c-bg-subtle:   #0f172a;
-    --mino-c-bg-surface:  #1e293b;
 
     /* Hero: clean hierarchy — bg < logo < title < actions */
     --vp-home-hero-name-color: transparent;
@@ -59,25 +50,86 @@
     --vp-home-hero-image-filter: blur(56px);
 }
 
-/* Hero: text-only layout (no image). Center the column and tighten rhythm. */
-.VPHero .container {
-    flex-direction: column;
-    text-align: center;
+.dark {
+    --mino-c-text-primary:   #f1f5f9;
+    --mino-c-text-secondary: #94a3b8;
+    --mino-c-text-tertiary:  #64748b;
+    --mino-c-bg-elevated: #1e293b;
+    --mino-c-bg-subtle:   #0f172a;
+    --mino-c-bg-surface:  #1e293b;
 }
 
-.VPHero .main {
-    max-width: 720px;
-    margin: 0 auto;
+/* -----------------------------------------------------------
+   2. HERO — balanced two-column layout with crisp alignment
+   ----------------------------------------------------------- */
+
+/* Keep text and image in a clean row at desktop */
+@media (min-width: 960px) {
+    .VPHero .container {
+        align-items: center;
+        gap: 4rem;
+    }
+
+    .VPHero .main {
+        text-align: left;
+        max-width: 560px;
+    }
+
+    .VPHero .tagline {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .VPHero .actions {
+        justify-content: flex-start;
+    }
+
+    /* Fix image collapse: give .image explicit height so children center properly */
+    .VPHero .image {
+        align-self: center;
+        min-height: 280px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .VPHero .image-container {
+        width: 280px;
+        height: 280px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: none;
+    }
 }
 
-.VPHero .name,
-.VPHero .text {
-    font-size: clamp(2.5rem, 6vw, 4rem);
-    line-height: 1.1;
+/* At mobile, stack and center */
+@media (max-width: 959px) {
+    .VPHero .container {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .VPHero .main {
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    .VPHero .actions {
+        justify-content: center;
+    }
+}
+
+.VPHero .name {
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.15;
     letter-spacing: -0.03em;
 }
 
 .VPHero .text {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
     color: var(--mino-c-text-primary);
     margin-top: 0.5rem;
 }
@@ -86,8 +138,41 @@
     color: var(--mino-c-text-secondary);
     font-size: 1.125rem;
     line-height: 1.7;
-    max-width: 600px;
-    margin: 1.5rem auto 0;
+    max-width: 520px;
+    margin: 1.25rem auto 0;
+}
+
+/* Logo image: crisp, subtle depth, responsive sizing */
+.VPHero .image-container {
+    flex-shrink: 0;
+}
+
+/* Glow: keep centered while scaling */
+.VPHero .image-bg {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(0.75);
+}
+
+.VPHero .image-src {
+    border-radius: 20px;
+    max-width: 240px;
+    max-height: 240px;
+    filter: drop-shadow(0 12px 32px rgba(37, 99, 235, 0.15));
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                filter 0.4s ease;
+}
+
+.VPHero .image-src:hover {
+    transform: translate(-50%, -50%) translateY(-4px) scale(1.02);
+    filter: drop-shadow(0 20px 48px rgba(37, 99, 235, 0.22));
+}
+
+.dark .VPHero .image-src {
+    filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.35));
+}
+
+.dark .VPHero .image-src:hover {
+    filter: drop-shadow(0 20px 48px rgba(0, 0, 0, 0.5));
 }
 
 /* -----------------------------------------------------------
@@ -139,13 +224,15 @@
 }
 
 /* -----------------------------------------------------------
-   4. FEATURES — card grid with depth and rhythm
+   4. FEATURES — equal-height card grid with aligned content
    ----------------------------------------------------------- */
 .VPFeatures .VPFeature {
+    display: flex;
+    flex-direction: column;
     background: var(--mino-c-bg-elevated);
     border: 1px solid #e2e8f0;
     border-radius: 16px;
-    padding: 2rem;
+    padding: 1.75rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -165,16 +252,20 @@
     border-color: #475569;
 }
 
+/* Icon: fixed-size container for visual consistency across all emoji */
 .VPFeatures .icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 10px;
     background: linear-gradient(135deg, #eff6ff, #dbeafe);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1.25rem;
-    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    font-size: 1.125rem;
+    line-height: 1;
 }
 
 .dark .VPFeatures .icon {
@@ -182,16 +273,18 @@
 }
 
 .VPFeatures .title {
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--mino-c-text-primary);
     margin-bottom: 0.5rem;
+    line-height: 1.35;
 }
 
 .VPFeatures .details {
-    font-size: 0.9375rem;
-    line-height: 1.7;
+    font-size: 0.875rem;
+    line-height: 1.65;
     color: var(--mino-c-text-secondary);
+    flex-grow: 1;
 }
 
 /* -----------------------------------------------------------

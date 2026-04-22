@@ -4,7 +4,10 @@ layout: home
 hero:
   name: Mino Skills
   text: From Markdown to Merged
-  tagline: Four skills. One protocol. Any agent. Drive a requirement document all the way to verified code without leaving your terminal.
+  tagline: Four skills. One protocol. Drive a Markdown spec to verified code — in your terminal.
+  image:
+    src: /logo.png
+    alt: Mino Skills
   actions:
     - theme: brand
       text: Get Started
