@@ -79,28 +79,44 @@ Approve adoption? (yes / cancel)
 
 Halt until explicit `yes`. `cancel` rolls back archival (re-`mv` files back) when `mode = re_adopted`.
 
-### Adopt-Step 6: Render brief
+On approval (`yes`), before exiting Adopt-Step 5, run `gh issue edit {N} --remove-label "stage:task" --add-label "stage:run"`. Failures are warnings, not errors. (This mirrors native Step 5's approval-time label flip.)
 
-Render `templates/brief.md.tmpl` with these substitutions for an adopted issue:
+### Adopt-Step 6: Standardize & render brief
+
+Treat the issue as a PRD-equivalent input. Reuse the same extraction reasoning the native `/task <spec>` flow applies to a PRD `.md` file — the resulting brief MUST be indistinguishable in field-filling pattern from a native publish.
+
+**Inputs to consider** (in priority order):
+1. Issue body (primary PRD text)
+2. Issue comments authored by the issue author or by accounts with `OWNER`, `MEMBER`, or `COLLABORATOR` author_association — these often carry clarifications, scope tightening, or accepted solutions. Ignore comments from `NONE`/`CONTRIBUTOR` unless they are explicitly endorsed (👍 reaction or in-thread acknowledgement) by an OWNER/MEMBER/COLLABORATOR.
+3. Existing labels on the issue (e.g. `bug`, `enhancement`, `area:*`) — hint at type and scope.
+
+**Field derivation** (substitute into `templates/brief.md.tmpl`):
 
 - `title` ← issue title
-- `task_key` ← from Step 4
-- `issue_number` ← `{N}`
-- `github_url` ← issue url
+- `task_key`, `issue_number`, `github_url`, `spec_revision` — as before
 - `parent_issue_url_or_none` ← `none`
-- `type` ← `bug` if any of the issue's existing labels match `/^(bug|defect|fix)$/i`, else `feature`
-- `shape` ← `atomic` (composite was refused in Step 2)
+- `type` ← infer: `bug` if labels match `/^(bug|defect|fix|regression)$/i` OR if body describes a defect (reproduction steps + expected vs actual); else `feature`
+- `shape` ← `atomic` (composite was refused in Step 2; if you discover during extraction that the issue actually contains multiple unrelated work items, halt and instruct the user to either split the issue manually or invoke `/task adopt issue-N --force-atomic` to merge them)
 - `executability` ← `executable`
-- `depends_on_task_keys_or_none` ← `none`
-- `acceptance_criteria_checklist` ← verbatim copy of the issue body, prefixed with `> Source: GitHub issue #{N}`. The human-authored body is the acceptance contract until the user edits the brief.
-- `verification_steps` ← `_(adopted issue — verify will infer from project conventions or route to pending_acceptance)_`
-- `target_files_list` ← `_(unknown at adoption — populated by run)_`
+- `depends_on_task_keys_or_none` ← `none` (cross-issue dependency discovery is out of scope for adopt)
+- `acceptance_criteria_checklist` ← **structured extraction**, not verbatim. Produce a markdown checklist (`- [ ] ...` lines) of testable outcomes derived from the issue body and qualifying comments. Each item MUST be a verifiable statement (e.g. `- [ ] Calling foo() with null returns NullPointerException with message "x"`), not a paraphrase of feelings (e.g. `- [ ] Fix the bug`). If the issue is too vague to yield ≥1 testable item, write a single line `- [ ] _(insufficient detail — see Open Questions)_` and populate `Open Questions / Warnings` with the specific gaps.
+- `verification_steps` ← derived from the issue, not a placeholder. Examples by type:
+  - **bug** → list the reproduction steps from the issue, then `- Expected: <expected>` `- Actual after fix: <expected>` lines
+  - **feature** → list the user-visible behaviors that must hold after implementation
+  - If the issue provides none and none can be inferred, write `_(verification will route to pending_acceptance — manual user sign-off required)_` AND set the brief's `Manual Acceptance` section header note to make this expectation explicit.
+- `target_files_list` ← best-effort inference. Sources:
+  - Filenames or paths mentioned in the issue body or comments (e.g. `src/foo.ts:123`)
+  - Symbol/function names mentioned, resolved against the repo via grep
+  - Stack traces in the issue (extract file paths)
+  - If nothing can be inferred, write `_(unknown at adoption — run will populate from grep/codebase exploration)_` (this is the only field where a placeholder remains acceptable, because run can legitimately discover targets at execution time)
 - `work_breakdown_or_not_applicable` ← `not_applicable`
 - `next_stage` ← `run`
 - `workflow_entry_state` ← `ready_to_start`
-- `spec_revision` ← from Step 4
+- `Open Questions / Warnings` section ← if extraction surfaced ambiguities, list them as `- Q: ...` lines so the user can edit the brief or add an issue comment before approving (Adopt-Step 5 already gated this; if questions exist, halt and re-prompt for approval citing the questions).
 
 Write to `.mino/briefs/issue-{N}.md`.
+
+**Quality bar**: a brief produced by this step must, when read in isolation, be sufficient for `run` to attempt implementation without re-reading the issue. If you cannot reach that bar from the available inputs, the brief is allowed to be sparse — but the sparsity MUST be explicit (`Open Questions / Warnings` populated), not hidden behind placeholder text.
 
 ### Adopt-Step 7: Render & record event (silent)
 
