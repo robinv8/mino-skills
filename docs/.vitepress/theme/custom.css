@@ -31,18 +31,18 @@
     transform: scale(0.85);
 }
 
-/* Subtle lift for the logo card */
+/* Keep the hero logo crisp; the asset already includes its own white canvas */
 .VPHero .image-src {
     border-radius: 16px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(8px);
-    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.12);
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
 }
 
 .dark .VPHero .image-src {
-    background: rgba(30, 41, 59, 0.7);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background: transparent;
+    box-shadow: none;
 }
 
 .VPNavBar .VPNavBarTitle .title {

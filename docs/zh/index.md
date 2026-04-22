@@ -6,7 +6,7 @@ hero:
   text: 任务驱动开发
   tagline: 将一份 Markdown spec 转化为已执行、已验证的代码 —— 无论使用哪款 AI agent。
   image:
-    src: /logo.svg
+    src: /logo.png
     alt: Mino Skills
   actions:
     - theme: brand
