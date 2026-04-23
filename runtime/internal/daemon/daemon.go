@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,10 +15,12 @@ import (
 
 // Config holds daemon configuration.
 type Config struct {
-	RepoRoot   string
-	Addr       string
-	PIDFile    string
-	LogFile    string
+	RepoRoot    string
+	Addr        string
+	PIDFile     string
+	LogFile     string
+	PortFile    string
+	TokenFile   string
 	AutoRestart bool
 }
 
@@ -27,6 +31,8 @@ func DefaultConfig(repoRoot string) Config {
 		Addr:        ":8765",
 		PIDFile:     filepath.Join(repoRoot, ".mino", "daemon.pid"),
 		LogFile:     filepath.Join(repoRoot, ".mino", "daemon.log"),
+		PortFile:    filepath.Join(repoRoot, ".mino", "daemon.port"),
+		TokenFile:   filepath.Join(repoRoot, ".mino", "daemon.token"),
 		AutoRestart: true,
 	}
 }
@@ -66,10 +72,20 @@ func Start(cfg Config) error {
 		return fmt.Errorf("daemon already running (PID %d)", pid)
 	}
 
+	// Generate random token
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return fmt.Errorf("generate token: %w", err)
+	}
+	token := hex.EncodeToString(tokenBytes)
+	if err := os.WriteFile(cfg.TokenFile, []byte(token+"\n"), 0600); err != nil {
+		return fmt.Errorf("write token file: %w", err)
+	}
+
 	// Fork into background
 	cmd := exec.Command(os.Args[0], "serve", cfg.Addr)
 	cmd.Dir = cfg.RepoRoot
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), "MINO_DAEMON_TOKEN="+token)
 
 	// Redirect output to log file
 	logFile, err := os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -88,6 +104,12 @@ func Start(cfg Config) error {
 	// Write PID file
 	if err := os.WriteFile(cfg.PIDFile, []byte(fmt.Sprintf("%d\n", cmd.Process.Pid)), 0644); err != nil {
 		return fmt.Errorf("write pid file: %w", err)
+	}
+
+	// Write port file (strip leading colon)
+	port := strings.TrimPrefix(cfg.Addr, ":")
+	if err := os.WriteFile(cfg.PortFile, []byte(port+"\n"), 0644); err != nil {
+		return fmt.Errorf("write port file: %w", err)
 	}
 
 	fmt.Printf("Daemon started (PID %d)\n", cmd.Process.Pid)
@@ -122,8 +144,10 @@ func Stop(cfg Config) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	// Remove PID file
+	// Remove PID, port, and token files
 	os.Remove(cfg.PIDFile)
+	os.Remove(cfg.PortFile)
+	os.Remove(cfg.TokenFile)
 	fmt.Println("Daemon stopped")
 	return nil
 }

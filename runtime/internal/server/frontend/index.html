@@ -125,7 +125,7 @@ let missedHeartbeats = 0;
 const maxMissedHeartbeats = 2;
 
 function connectWS() {
-  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws = new WebSocket(`ws://${location.host}/api/v1/ws`);
 
   ws.onopen = () => {
     statusEl.textContent = 'Connected';
@@ -184,7 +184,7 @@ connectWS();
 // API helpers
 async function fetchTasks() {
   try {
-    const res = await fetch('/api/tasks');
+    const res = await fetch('/api/v1/tasks');
     const data = await res.json();
     renderTasks(data.tasks || []);
   } catch (e) {
@@ -194,7 +194,7 @@ async function fetchTasks() {
 
 async function fetchState(issue) {
   try {
-    const res = await fetch(`/api/state?issue=${issue}`);
+    const res = await fetch(`/api/v1/state?issue=${issue}`);
     return await res.json();
   } catch (e) {
     log(`fetchState error: ${e.message}`);
@@ -205,7 +205,7 @@ async function fetchState(issue) {
 async function dryRun(issue) {
   log(`Dry-run #${issue}...`);
   try {
-    const res = await fetch('/commands', {
+    const res = await fetch('/api/v1/commands', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -224,7 +224,7 @@ async function dryRun(issue) {
 async function sendCommand(type, issue) {
   log(`${type} #${issue}...`);
   try {
-    const res = await fetch('/commands', {
+    const res = await fetch('/api/v1/commands', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, target: { issue } })

@@ -7,6 +7,11 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,10 +20,13 @@ import (
 	"github.com/robinv8/mino-runtime/internal/event"
 	"github.com/robinv8/mino-runtime/internal/lock"
 	"github.com/robinv8/mino-runtime/internal/state"
+	"github.com/robinv8/mino-runtime/pkg/schema"
 )
 
 //go:embed frontend
 var frontendFS embed.FS
+
+const version = "0.1.0"
 
 // Server is the Phase 2 HTTP/WebSocket runtime.
 type Server struct {
@@ -27,9 +35,11 @@ type Server struct {
 	upgrader  websocket.Upgrader
 	clients   map[*client]bool
 	clientsMu sync.RWMutex
-	broadcast chan Event
+	broadcast chan schema.Event
 	commands  chan CommandRequest
 	httpSrv   *http.Server
+	startedAt time.Time
+	token     string
 }
 
 // CommandRequest is what clients POST to /commands.
@@ -47,43 +57,64 @@ type CommandResponse struct {
 	Status    string `json:"status"`
 }
 
-// Event is pushed to all connected WebSocket clients.
-type Event struct {
-	Type      string                 `json:"type"`
-	Timestamp time.Time              `json:"timestamp"`
-	Payload   map[string]interface{} `json:"payload,omitempty"`
-}
-
 type client struct {
 	conn   *websocket.Conn
-	send   chan Event
+	send   chan schema.Event
 	server *Server
 }
 
 // New creates a Server bound to the given repo root.
 func New(repoRoot, addr string) *Server {
 	s := &Server{
-		repoRoot: repoRoot,
-		addr:     addr,
+		repoRoot:  repoRoot,
+		addr:      addr,
+		startedAt: time.Now().UTC(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true }, // local dev
 		},
 		clients:   make(map[*client]bool),
-		broadcast: make(chan Event, 64),
+		broadcast: make(chan schema.Event, 64),
 		commands:  make(chan CommandRequest, 16),
 	}
+	s.loadToken()
 	return s
+}
+
+func (s *Server) loadToken() {
+	// Prefer environment variable
+	if t := os.Getenv("MINO_DAEMON_TOKEN"); t != "" {
+		s.token = t
+		return
+	}
+	// Fallback to token file
+	path := filepath.Join(s.repoRoot, ".mino", "daemon.token")
+	data, err := os.ReadFile(path)
+	if err == nil {
+		s.token = strings.TrimSpace(string(data))
+	}
 }
 
 // Start runs the HTTP server and command processor.
 func (s *Server) Start() error {
 	mux := http.NewServeMux()
 
-	// API routes
-	mux.HandleFunc("/commands", s.handleCommands)
-	mux.HandleFunc("/ws", s.handleWebSocket)
-	mux.HandleFunc("/api/tasks", s.handleTasks)
-	mux.HandleFunc("/api/state", s.handleState)
+	// Auth wrapper for API routes
+	api := func(h http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if !s.requireAuth(w, r) {
+				return
+			}
+			h(w, r)
+		}
+	}
+
+	// API routes (v1)
+	mux.HandleFunc("/api/v1/commands", api(s.handleCommands))
+	mux.HandleFunc("/api/v1/ws", s.handleWebSocket)
+	mux.HandleFunc("/api/v1/tasks", api(s.handleTasks))
+	mux.HandleFunc("/api/v1/state", api(s.handleState))
+	mux.HandleFunc("/api/v1/events", api(s.handleEvents))
+	mux.HandleFunc("/api/v1/health", api(s.handleHealth))
 
 	// Static frontend — serve frontend/ dir contents at root
 	fsRoot, _ := fs.Sub(frontendFS, "frontend")
@@ -138,10 +169,46 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	// TODO: scan .mino/briefs/ and return all task states
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"tasks": []interface{}{},
-	})
+
+	briefsDir := filepath.Join(s.repoRoot, ".mino", "briefs")
+	entries, err := os.ReadDir(briefsDir)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"tasks": []interface{}{}})
+		return
+	}
+
+	includeEvents := r.URL.Query().Get("include") == "events"
+	var tasks []map[string]interface{}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "issue-") || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(briefsDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		b := brief.Parse(string(data))
+		if b.IssueNumber == 0 {
+			continue
+		}
+		task := map[string]interface{}{
+			"issue":         b.IssueNumber,
+			"task_key":      b.TaskKey,
+			"stage":         b.CurrentStage,
+			"next_stage":    b.NextStage,
+			"attempt":       b.AttemptCount,
+			"max_retry":     b.MaxRetryCount,
+			"spec_revision": b.SpecRevision,
+		}
+		if includeEvents {
+			eventsDir := filepath.Join(s.repoRoot, ".mino", "events", fmt.Sprintf("issue-%d", b.IssueNumber))
+			task["events"] = s.scanEvents(eventsDir, 20)
+		}
+		tasks = append(tasks, task)
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{"tasks": tasks})
 }
 
 func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
@@ -184,9 +251,205 @@ func parseIssueFromQuery(r *http.Request) (float64, bool) {
 	return f, f > 0
 }
 
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	issueFloat, ok := parseIssueFromQuery(r)
+	if !ok {
+		http.Error(w, "missing issue param", http.StatusBadRequest)
+		return
+	}
+	issue := int(issueFloat)
+
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	since := 0
+	if s := r.URL.Query().Get("since"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v >= 0 {
+			since = v
+		}
+	}
+
+	eventsDir := filepath.Join(s.repoRoot, ".mino", "events", fmt.Sprintf("issue-%d", issue))
+	all := s.scanEvents(eventsDir, 0) // 0 = no limit
+
+	// Filter and paginate
+	var filtered []map[string]interface{}
+	for _, ev := range all {
+		seq, _ := ev["seq"].(int)
+		if seq > since {
+			filtered = append(filtered, ev)
+		}
+	}
+	if len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+
+	nextSeq := since
+	if len(filtered) > 0 {
+		last := filtered[len(filtered)-1]
+		if s, ok := last["seq"].(int); ok {
+			nextSeq = s
+		}
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"events":  filtered,
+		"next_seq": nextSeq,
+	})
+}
+
+// scanEvents reads event files from the given directory and returns them sorted by seq.
+// max = 0 means no limit.
+func (s *Server) scanEvents(eventsDir string, max int) []map[string]interface{} {
+	entries, err := os.ReadDir(eventsDir)
+	if err != nil {
+		return nil
+	}
+
+	type item struct {
+		seq  int
+		name string
+	}
+	var items []item
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		// Format: {seq:04d}-{event_type}.yml
+		parts := strings.SplitN(name, "-", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		seq, err := strconv.Atoi(parts[0])
+		if err != nil {
+			continue
+		}
+		items = append(items, item{seq: seq, name: name})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].seq < items[j].seq
+	})
+
+	if max > 0 && len(items) > max {
+		items = items[len(items)-max:] // take most recent
+	}
+
+	var result []map[string]interface{}
+	for _, it := range items {
+		data, err := os.ReadFile(filepath.Join(eventsDir, it.name))
+		if err != nil {
+			continue
+		}
+		ev := parseEventFile(it.seq, string(data))
+		if ev != nil {
+			result = append(result, ev)
+		}
+	}
+	return result
+}
+
+// parseEventFile extracts fields from an event YAML block.
+func parseEventFile(seq int, raw string) map[string]interface{} {
+	// Extract YAML block between ```yaml and ```
+	start := strings.Index(raw, "```yaml\n")
+	if start == -1 {
+		return nil
+	}
+	start += len("```yaml\n")
+	end := strings.Index(raw[start:], "\n```")
+	if end == -1 {
+		return nil
+	}
+	yamlBlock := raw[start : start+end]
+
+	var eventType, timestamp string
+	payload := make(map[string]interface{})
+
+	lines := strings.Split(yamlBlock, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "iron_tree:" {
+			continue
+		}
+		// Look for "key: value" pairs at indent level 2
+		if idx := strings.Index(line, ":"); idx > 0 {
+			key := strings.TrimSpace(line[:idx])
+			val := strings.TrimSpace(line[idx+1:])
+			switch key {
+			case "event_type":
+				eventType = val
+			case "timestamp":
+				timestamp = val
+			case "version", "sequence":
+				// skip internal fields
+			default:
+				payload[key] = val
+			}
+		}
+	}
+
+	if eventType == "" {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"seq":       seq,
+		"type":      eventType,
+		"timestamp": timestamp,
+		"payload":   payload,
+	}
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"version":    version,
+		"repo_root":  s.repoRoot,
+		"pid":        os.Getpid(),
+		"started_at": s.startedAt.Format(time.RFC3339),
+	})
+}
+
+// requireAuth checks the Authorization header against the daemon token.
+// Returns true if authenticated (or no token configured — backward compat).
+func (s *Server) requireAuth(w http.ResponseWriter, r *http.Request) bool {
+	if s.token == "" {
+		return true // no token configured; allow
+	}
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(auth, prefix) || auth[len(prefix):] != s.token {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
 // --- WebSocket ---
 
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAuth(w, r) {
+		return
+	}
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -194,7 +457,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	c := &client{
 		conn:   conn,
-		send:   make(chan Event, 16),
+		send:   make(chan schema.Event, 16),
 		server: s,
 	}
 
@@ -206,7 +469,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	go c.readPump()
 
 	// Send immediate heartbeat
-	c.send <- Event{Type: "connected", Timestamp: time.Now().UTC()}
+	c.send <- schema.Event{Type: schema.EventConnected, Timestamp: time.Now().UTC()}
 }
 
 func (s *Server) broadcaster() {
@@ -223,7 +486,7 @@ func (s *Server) broadcaster() {
 	}
 }
 
-func (s *Server) emit(ev Event) {
+func (s *Server) emit(ev schema.Event) {
 	select {
 	case s.broadcast <- ev:
 	default:
@@ -282,8 +545,8 @@ func (c *client) writePump() {
 func (s *Server) commandProcessor() {
 	for cmd := range s.commands {
 		result := s.executeCommand(cmd)
-		s.emit(Event{
-			Type:      "command_completed",
+		s.emit(schema.Event{
+			Type:      schema.EventCommandCompleted,
 			Timestamp: time.Now().UTC(),
 			Payload: map[string]interface{}{
 				"command_id": cmd.ID,
