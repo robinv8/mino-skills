@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/robinv8/mino-runtime/pkg/schema"
 )
 
 // Brief represents a parsed local brief file.
@@ -21,11 +23,15 @@ type Brief struct {
 }
 
 // Load reads a brief file from .mino/briefs/issue-{N}.md.
+// Validates schema before returning.
 func Load(repoRoot string, issueNumber int) (*Brief, error) {
 	path := filepath.Join(repoRoot, ".mino", "briefs", fmt.Sprintf("issue-%d.md", issueNumber))
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read brief: %w", err)
+	}
+	if errs := schema.ValidateBrief(string(data)); len(errs) > 0 {
+		return nil, fmt.Errorf("schema validation failed: %v", errs)
 	}
 	return Parse(string(data)), nil
 }
@@ -67,7 +73,11 @@ func Parse(raw string) *Brief {
 }
 
 // Save writes the brief back to disk.
+// Validates schema before writing to prevent persisting malformed state.
 func (b *Brief) Save(repoRoot string) error {
+	if errs := schema.ValidateBrief(b.Raw); len(errs) > 0 {
+		return fmt.Errorf("schema validation failed before save: %v", errs)
+	}
 	path := filepath.Join(repoRoot, ".mino", "briefs", fmt.Sprintf("issue-%d.md", b.IssueNumber))
 	return os.WriteFile(path, []byte(b.Raw), 0644)
 }
