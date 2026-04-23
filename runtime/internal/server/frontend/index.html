@@ -116,23 +116,70 @@ function log(msg) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-// WebSocket
-const ws = new WebSocket(`ws://${location.host}/ws`);
-ws.onopen = () => {
-  statusEl.textContent = 'Connected';
-  statusEl.style.color = 'var(--success)';
-  log('WebSocket connected');
-};
-ws.onmessage = (ev) => {
-  const data = JSON.parse(ev.data);
-  log(`Event: ${data.type} — ${JSON.stringify(data.payload || {})}`);
-  if (data.type === 'command_completed') fetchTasks();
-};
-ws.onclose = () => {
-  statusEl.textContent = 'Disconnected';
-  statusEl.style.color = 'var(--danger)';
-  log('WebSocket closed');
-};
+// WebSocket with auto-reconnect and heartbeat
+let ws = null;
+let reconnectDelay = 1000;
+const maxReconnectDelay = 30000;
+let heartbeatTimer = null;
+let missedHeartbeats = 0;
+const maxMissedHeartbeats = 2;
+
+function connectWS() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+
+  ws.onopen = () => {
+    statusEl.textContent = 'Connected';
+    statusEl.style.color = 'var(--success)';
+    log('WebSocket connected');
+    reconnectDelay = 1000;
+    missedHeartbeats = 0;
+    startHeartbeat();
+  };
+
+  ws.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+    if (data.type === 'ping') {
+      missedHeartbeats = 0;
+      ws.send(JSON.stringify({type: 'pong'}));
+      return;
+    }
+    log(`Event: ${data.type} — ${JSON.stringify(data.payload || {})}`);
+    if (data.type === 'command_completed') fetchTasks();
+  };
+
+  ws.onclose = () => {
+    statusEl.textContent = 'Disconnected — reconnecting...';
+    statusEl.style.color = 'var(--warn)';
+    log('WebSocket closed, will reconnect');
+    stopHeartbeat();
+    setTimeout(connectWS, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+  };
+
+  ws.onerror = (err) => {
+    log('WebSocket error');
+  };
+}
+
+function startHeartbeat() {
+  stopHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    missedHeartbeats++;
+    if (missedHeartbeats > maxMissedHeartbeats) {
+      log('Heartbeat timeout, forcing reconnect');
+      ws.close();
+    }
+  }, 35000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
+connectWS();
 
 // API helpers
 async function fetchTasks() {
@@ -174,28 +221,49 @@ async function dryRun(issue) {
   }
 }
 
-async function stepIssue(issue) {
-  log(`Step #${issue}...`);
+async function sendCommand(type, issue) {
+  log(`${type} #${issue}...`);
   try {
     const res = await fetch('/commands', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'step',
-        target: { issue }
-      })
+      body: JSON.stringify({ type, target: { issue } })
     });
     const data = await res.json();
     log(`Command accepted: ${data.command_id}`);
   } catch (e) {
-    log(`step error: ${e.message}`);
+    log(`${type} error: ${e.message}`);
   }
+}
+
+// HITL action wrappers
+const stepIssue = (issue) => sendCommand('step', issue);
+const approveIssue = (issue) => sendCommand('approve', issue);
+const skipIssue = (issue) => sendCommand('skip', issue);
+const cancelIssue = (issue) => sendCommand('cancel', issue);
+const retryIssue = (issue) => sendCommand('retry', issue);
+
+function renderHITL(state) {
+  const stage = state.stage;
+  const issue = state.issue;
+  if (stage === 'done') return '';
+  if (stage === 'halted') {
+    return `
+      <button class="secondary" onclick="retryIssue(${issue})">Retry</button>
+      <button class="secondary" onclick="skipIssue(${issue})">Skip</button>
+      <button class="secondary" onclick="cancelIssue(${issue})">Cancel</button>
+    `;
+  }
+  return `
+    <button onclick="stepIssue(${issue})">Step</button>
+    <button class="secondary" onclick="skipIssue(${issue})">Skip</button>
+    <button class="secondary" onclick="cancelIssue(${issue})">Cancel</button>
+  `;
 }
 
 function renderTasks(tasks) {
   const container = document.getElementById('tasks');
   if (tasks.length === 0) {
-    // Fallback: manually fetch known issues
     loadKnownIssues();
     return;
   }
@@ -205,14 +273,16 @@ function renderTasks(tasks) {
         <span class="task-key">${t.task_key}</span>
         <span class="task-meta">Issue #${t.issue} — ${t.stage}</span>
       </div>
-      <span class="stage stage-${t.stage}">${t.stage}</span>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <span class="stage stage-${t.stage}">${t.stage}</span>
+        ${renderHITL(t)}
+      </div>
     </div>
   `).join('');
 }
 
 async function loadKnownIssues() {
-  // Hard-code known issues for prototype
-  const issues = [23, 24, 25];
+  const issues = [23, 24, 25, 26];
   const container = document.getElementById('tasks');
   container.innerHTML = '';
   for (const issue of issues) {
@@ -224,10 +294,11 @@ async function loadKnownIssues() {
       <div class="task-info">
         <span class="task-key">${state.task_key}</span>
         <span class="task-meta">Issue #${state.issue} — Attempt ${state.attempt}/${state.max_retry}</span>
+        ${state.stage === 'halted' ? `<span class="task-meta" style="color:var(--danger)">Halted — manual intervention required</span>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:0.75rem">
         <span class="stage stage-${state.stage}">${state.stage}</span>
-        ${state.stage !== 'done' ? `<button onclick="stepIssue(${state.issue})">Step</button>` : ''}
+        ${renderHITL(state)}
       </div>
     `;
     container.appendChild(el);

@@ -298,7 +298,7 @@ func (s *Server) executeCommand(cmd CommandRequest) map[string]interface{} {
 	result := map[string]interface{}{"success": false}
 
 	switch cmd.Type {
-	case "step":
+	case "step", "approve", "skip", "cancel", "retry":
 		issue, _ := cmd.Target["issue"].(float64)
 		if issue == 0 {
 			result["error"] = "missing target.issue"
@@ -319,7 +319,7 @@ func (s *Server) executeCommand(cmd CommandRequest) map[string]interface{} {
 			return result
 		}
 
-		if err := lock.Acquire(s.repoRoot, fmt.Sprintf("api-step-issue-%d", int(issue))); err != nil {
+		if err := lock.Acquire(s.repoRoot, fmt.Sprintf("api-%s-issue-%d", cmd.Type, int(issue))); err != nil {
 			result["error"] = err.Error()
 			return result
 		}
@@ -332,9 +332,31 @@ func (s *Server) executeCommand(cmd CommandRequest) map[string]interface{} {
 		}
 
 		from := state.Stage(b.CurrentStage)
-		next, err := state.DefaultNext(from)
-		if err != nil {
-			result["error"] = err.Error()
+		var next state.Stage
+		var evType string
+
+		switch cmd.Type {
+		case "step", "approve":
+			next, _ = state.DefaultNext(from)
+			evType = "task_advanced"
+		case "skip":
+			next, _ = state.DefaultNext(from)
+			evType = "task_skipped"
+		case "cancel":
+			next = state.StageHalted
+			evType = "task_cancelled"
+		case "retry":
+			if from == state.StageHalted {
+				next = state.StageRun
+			} else {
+				result["error"] = "can only retry from halted state"
+				return result
+			}
+			evType = "task_retried"
+		}
+
+		if next == "" {
+			result["error"] = fmt.Sprintf("cannot %s from %s", cmd.Type, from)
 			return result
 		}
 
@@ -352,13 +374,15 @@ func (s *Server) executeCommand(cmd CommandRequest) map[string]interface{} {
 			return result
 		}
 
-		_ = event.Record(s.repoRoot, int(issue), "task_advanced", map[string]string{
+		_ = event.Record(s.repoRoot, int(issue), evType, map[string]string{
 			"from": string(from),
 			"to":   string(next),
+			"action": cmd.Type,
 		})
 
 		result["success"] = true
 		result["advanced"] = fmt.Sprintf("%s → %s", from, next)
+		result["action"] = cmd.Type
 
 	default:
 		result["error"] = fmt.Sprintf("unknown command type: %s", cmd.Type)
