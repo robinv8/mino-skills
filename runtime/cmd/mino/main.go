@@ -12,6 +12,7 @@ import (
 	"github.com/robinv8/mino-runtime/internal/git"
 	"github.com/robinv8/mino-runtime/internal/lock"
 	"github.com/robinv8/mino-runtime/internal/preflight"
+	"github.com/robinv8/mino-runtime/internal/server"
 	"github.com/robinv8/mino-runtime/internal/state"
 )
 
@@ -31,6 +32,8 @@ func main() {
 		handleRun()
 	case "check":
 		handleCheck()
+	case "serve":
+		handleServe()
 	case "version":
 		fmt.Println("mino 0.1.0")
 	default:
@@ -47,6 +50,7 @@ Usage:
   mino state  <issue>          Show current stage of an issue
   mino step   <issue>          Advance to next stage (acquires lock)
   mino run    <issue>          Full run cycle: pre-flight + lock + step + git + release
+  mino serve  [addr]           Start HTTP/WebSocket API server (default :8765)
   mino check                   Run pre-flight checks for current repo
   mino version                 Show version
 
@@ -266,4 +270,23 @@ func advanceAndSave(root string, issue int, b *brief.Brief) (state.Stage, state.
 
 	fmt.Printf("Issue #%d advanced: %s → %s\n", issue, from, next)
 	return from, next
+}
+
+func handleServe() {
+	root, err := resolveRepoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve repo: %v\n", err)
+		os.Exit(1)
+	}
+
+	addr := ":8765"
+	if len(os.Args) > 2 {
+		addr = os.Args[2]
+	}
+
+	srv := server.New(root, addr)
+	if err := srv.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "server: %v\n", err)
+		os.Exit(1)
+	}
 }

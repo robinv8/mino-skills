@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mino Runtime — Iron Tree Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --success: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+    --border: #30363d;
+    --card: #161b22;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+  .status { color: var(--muted); font-size: 0.875rem; margin-bottom: 1rem; }
+  .task-list { display: grid; gap: 0.75rem; }
+  .task {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .task-info { display: flex; flex-direction: column; gap: 0.25rem; }
+  .task-key { font-weight: 600; }
+  .task-meta { color: var(--muted); font-size: 0.875rem; }
+  .stage {
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stage-definition { background: #21262d; color: var(--muted); }
+  .stage-task { background: #341a00; color: var(--warn); }
+  .stage-run { background: #0d1d30; color: var(--accent); }
+  .stage-verify { background: #1d0d30; color: #a371f7; }
+  .stage-checkup { background: #0d301d; color: var(--success); }
+  .stage-done { background: #0d301d; color: var(--success); }
+  .stage-halted { background: #300d0d; color: var(--danger); }
+  .actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  button:hover { opacity: 0.9; }
+  button.secondary { background: var(--card); color: var(--fg); border: 1px solid var(--border); }
+  .log {
+    margin-top: 1.5rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.8125rem;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    color: var(--muted);
+  }
+  .log .event { color: var(--fg); margin-bottom: 0.25rem; }
+</style>
+</head>
+<body>
+<h1>Iron Tree Dashboard</h1>
+<div class="status" id="conn-status">Connecting...</div>
+
+<div class="actions">
+  <button onclick="fetchTasks()">Refresh</button>
+  <button class="secondary" onclick="dryRun(23)">Dry-run #23</button>
+</div>
+
+<div class="task-list" id="tasks">
+  <div class="task">
+    <div class="task-info">
+      <span class="task-key">Loading...</span>
+    </div>
+  </div>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const logEl = document.getElementById('log');
+const statusEl = document.getElementById('conn-status');
+
+function log(msg) {
+  const line = document.createElement('div');
+  line.className = 'event';
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// WebSocket
+const ws = new WebSocket(`ws://${location.host}/ws`);
+ws.onopen = () => {
+  statusEl.textContent = 'Connected';
+  statusEl.style.color = 'var(--success)';
+  log('WebSocket connected');
+};
+ws.onmessage = (ev) => {
+  const data = JSON.parse(ev.data);
+  log(`Event: ${data.type} — ${JSON.stringify(data.payload || {})}`);
+  if (data.type === 'command_completed') fetchTasks();
+};
+ws.onclose = () => {
+  statusEl.textContent = 'Disconnected';
+  statusEl.style.color = 'var(--danger)';
+  log('WebSocket closed');
+};
+
+// API helpers
+async function fetchTasks() {
+  try {
+    const res = await fetch('/api/tasks');
+    const data = await res.json();
+    renderTasks(data.tasks || []);
+  } catch (e) {
+    log(`fetchTasks error: ${e.message}`);
+  }
+}
+
+async function fetchState(issue) {
+  try {
+    const res = await fetch(`/api/state?issue=${issue}`);
+    return await res.json();
+  } catch (e) {
+    log(`fetchState error: ${e.message}`);
+    return null;
+  }
+}
+
+async function dryRun(issue) {
+  log(`Dry-run #${issue}...`);
+  try {
+    const res = await fetch('/commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'step',
+        target: { issue },
+        dry_run: true
+      })
+    });
+    const data = await res.json();
+    log(`Dry-run result: ${JSON.stringify(data)}`);
+  } catch (e) {
+    log(`dryRun error: ${e.message}`);
+  }
+}
+
+async function stepIssue(issue) {
+  log(`Step #${issue}...`);
+  try {
+    const res = await fetch('/commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'step',
+        target: { issue }
+      })
+    });
+    const data = await res.json();
+    log(`Command accepted: ${data.command_id}`);
+  } catch (e) {
+    log(`step error: ${e.message}`);
+  }
+}
+
+function renderTasks(tasks) {
+  const container = document.getElementById('tasks');
+  if (tasks.length === 0) {
+    // Fallback: manually fetch known issues
+    loadKnownIssues();
+    return;
+  }
+  container.innerHTML = tasks.map(t => `
+    <div class="task">
+      <div class="task-info">
+        <span class="task-key">${t.task_key}</span>
+        <span class="task-meta">Issue #${t.issue} — ${t.stage}</span>
+      </div>
+      <span class="stage stage-${t.stage}">${t.stage}</span>
+    </div>
+  `).join('');
+}
+
+async function loadKnownIssues() {
+  // Hard-code known issues for prototype
+  const issues = [23, 24, 25];
+  const container = document.getElementById('tasks');
+  container.innerHTML = '';
+  for (const issue of issues) {
+    const state = await fetchState(issue);
+    if (!state) continue;
+    const el = document.createElement('div');
+    el.className = 'task';
+    el.innerHTML = `
+      <div class="task-info">
+        <span class="task-key">${state.task_key}</span>
+        <span class="task-meta">Issue #${state.issue} — Attempt ${state.attempt}/${state.max_retry}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <span class="stage stage-${state.stage}">${state.stage}</span>
+        ${state.stage !== 'done' ? `<button onclick="stepIssue(${state.issue})">Step</button>` : ''}
+      </div>
+    `;
+    container.appendChild(el);
+  }
+}
+
+// Initial load
+loadKnownIssues();
+</script>
+</body>
+</html>
