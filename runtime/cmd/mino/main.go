@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/robinv8/mino-runtime/internal/brief"
+	"github.com/robinv8/mino-runtime/internal/daemon"
 	"github.com/robinv8/mino-runtime/internal/event"
 	"github.com/robinv8/mino-runtime/internal/git"
 	"github.com/robinv8/mino-runtime/internal/lock"
@@ -34,6 +35,8 @@ func main() {
 		handleCheck()
 	case "serve":
 		handleServe()
+	case "daemon":
+		handleDaemon()
 	case "version":
 		fmt.Println("mino 0.1.0")
 	default:
@@ -44,20 +47,22 @@ func main() {
 }
 
 func usage() {
-	fmt.Println(`mino — Iron Tree Runtime (Phase 1)
+	fmt.Println(`mino — Iron Tree Runtime (Phase 3)
 
 Usage:
-  mino state  <issue>          Show current stage of an issue
-  mino step   <issue>          Advance to next stage (acquires lock)
-  mino run    <issue>          Full run cycle: pre-flight + lock + step + git + release
-  mino serve  [addr]           Start HTTP/WebSocket API server (default :8765)
+  mino state   <issue>         Show current stage of an issue
+  mino step    <issue>         Advance to next stage (acquires lock)
+  mino run     <issue>         Full run cycle: pre-flight + lock + step + git + release
+  mino serve   [addr]          Start HTTP/WebSocket API server (default :8765)
+  mino daemon  <start|stop|status|install>  Manage background daemon
   mino check                   Run pre-flight checks for current repo
   mino version                 Show version
 
 Examples:
   mino state issue-23
   mino state 23
-  mino run issue-23`)
+  mino run issue-23
+  mino daemon start`)
 }
 
 func resolveRepoRoot() (string, error) {
@@ -287,6 +292,50 @@ func handleServe() {
 	srv := server.New(root, addr)
 	if err := srv.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "server: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func handleDaemon() {
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "usage: mino daemon <start|stop|status|install>")
+		os.Exit(1)
+	}
+
+	root, err := resolveRepoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve repo: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfg := daemon.DefaultConfig(root)
+	sub := os.Args[2]
+
+	switch sub {
+	case "start":
+		if err := daemon.Start(cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "daemon start: %v\n", err)
+			os.Exit(1)
+		}
+	case "stop":
+		if err := daemon.Stop(cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "daemon stop: %v\n", err)
+			os.Exit(1)
+		}
+	case "status":
+		fmt.Println(daemon.Status(cfg))
+	case "install":
+		binaryPath, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "resolve binary: %v\n", err)
+			os.Exit(1)
+		}
+		if err := daemon.InstallLaunchd(cfg, binaryPath); err != nil {
+			fmt.Fprintf(os.Stderr, "install launchd: %v\n", err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "unknown daemon command: %s\n", sub)
 		os.Exit(1)
 	}
 }
