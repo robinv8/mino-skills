@@ -205,11 +205,14 @@ func handleRun() {
 		msg := fmt.Sprintf("[run] #%d: %s (%s → %s)", issue, b.TaskKey, from, next)
 		fmt.Println("[git] committing...")
 		sha, err := repo.Commit(msg)
-		if err != nil {
+		if err == git.ErrNothingToCommit {
+			fmt.Println("[git] no tracked changes to commit")
+		} else if err != nil {
 			fmt.Fprintf(os.Stderr, "git commit: %v\n", err)
 			os.Exit(1)
+		} else {
+			fmt.Printf("[git] committed: %s\n", sha)
 		}
-		fmt.Printf("[git] committed: %s\n", sha)
 	} else {
 		fmt.Println("[git] no changes to commit")
 	}
