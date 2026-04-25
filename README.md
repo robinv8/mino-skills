@@ -1,3 +1,12 @@
+> **This repository has moved to [robinv8/mino](https://github.com/robinv8/mino).**
+>
+> `robinv8/mino-skills` is archived. All future development, releases, and issues
+> are now tracked in the unified monorepo at `robinv8/mino`.
+>
+> New install command: `gh copilot extension install robinv8/mino` (or `npx skills add robinv8/mino ...`)
+>
+> Migrated: 2026-04-25
+
 <p align="center">
   <img src="docs/public/logo.png" alt="Mino Skills" width="240">
 </p>

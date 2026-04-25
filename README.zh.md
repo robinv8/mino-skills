@@ -1,3 +1,11 @@
+> **本仓库已迁移至 [robinv8/mino](https://github.com/robinv8/mino)。**
+>
+> `robinv8/mino-skills` 已归档。后续所有开发、Release 和 Issue 都在统一 monorepo `robinv8/mino` 中维护。
+>
+> 新的安装命令：`gh copilot extension install robinv8/mino`（或 `npx skills add robinv8/mino ...`）
+>
+> 迁移日期：2026-04-25
+
 [English](README.md) | **简体中文**
 
 # Mino Skills
